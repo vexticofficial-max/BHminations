@@ -1,46 +1,49 @@
+/* Genel Ayarlar ve Renk Değişkenleri */
 :root {
     --bg-color: #ffffff;
     --text-color: #0f0f0f;
-    --secondary-text: #606060;
     --border-color: #e5e5e5;
-    --hover-color: #f2f2f2;
+    --yt-blue: #3ea6ff;
+    --sidebar-hover: #f2f2f2;
+    --header-bg: #ffffff;
 }
 
+/* Karanlık Mod Renkleri */
 .dark-mode {
     --bg-color: #0f0f0f;
     --text-color: #ffffff;
-    --secondary-text: #aaaaaa;
     --border-color: #3f3f3f;
-    --hover-color: #272727;
+    --sidebar-hover: #272727;
+    --header-bg: #0f0f0f;
 }
 
 body {
+    margin: 0;
+    font-family: 'Roboto', sans-serif;
     background-color: var(--bg-color);
     color: var(--text-color);
-    margin: 0;
-    font-family: "Roboto", Arial, sans-serif;
-    transition: 0.2s;
+    transition: background 0.3s, color 0.3s;
 }
 
+/* Header Tasarımı */
 header {
     display: flex;
     justify-content: space-between;
+    align-items: center;
     padding: 8px 16px;
-    background: var(--bg-color);
+    background: var(--header-bg);
     border-bottom: 1px solid var(--border-color);
     position: sticky;
     top: 0;
-    z-index: 100;
+    z-index: 1000;
 }
 
-/* Arama Çubuğu Tasarımı */
-.search-container {
-    display: flex;
-    align-items: center;
-}
+.header-left { display: flex; align-items: center; gap: 20px; }
+.menu-icon { font-size: 20px; cursor: pointer; }
+.logo { font-size: 20px; font-weight: bold; cursor: pointer; }
 
 .search-bar {
-    width: 500px;
+    width: 400px;
     padding: 10px 16px;
     border: 1px solid var(--border-color);
     border-radius: 40px 0 0 40px;
@@ -54,50 +57,102 @@ header {
     border: 1px solid var(--border-color);
     border-left: none;
     border-radius: 0 40px 40px 0;
+    background: var(--sidebar-hover);
     cursor: pointer;
-    background: var(--hover-color);
 }
+
+/* Ana Düzen (Layout) */
+.main-layout { display: flex; }
 
 .sidebar {
     width: 240px;
+    height: calc(100vh - 56px);
     padding: 12px;
+    position: sticky;
+    top: 56px;
 }
 
 .sidebar li {
-    padding: 10px 12px;
+    padding: 12px;
     border-radius: 10px;
+    list-style: none;
     cursor: pointer;
     display: flex;
     align-items: center;
     gap: 20px;
+    transition: 0.2s;
 }
 
-.sidebar li:hover { background: var(--hover-color); }
+.sidebar li:hover { background: var(--sidebar-hover); }
 
-/* Video Kartı Tasarımı (YouTube Stili) */
-.video-card {
-    cursor: pointer;
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
+/* Video Kartları */
+.content { flex: 1; padding: 24px; }
+
+.video-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 20px;
 }
 
-.thumbnail-box {
+.video-card { cursor: pointer; }
+
+.thumbnail {
     width: 100%;
     aspect-ratio: 16/9;
-    background: #ccc;
     border-radius: 12px;
-    overflow: hidden;
+    object-fit: cover;
+    background: #555;
 }
 
-.video-title {
-    font-size: 16px;
+/* Öne Çıkan (Featured) Kartlar */
+.video-card.featured {
+    border: 2px solid var(--yt-blue);
+    box-shadow: 0 0 15px rgba(62, 166, 255, 0.2);
+    border-radius: 15px;
+    padding: 10px;
+    background: var(--sidebar-hover);
+}
+
+/* Onaylı Rozet */
+.verified-badge {
+    background: var(--yt-blue);
+    color: white;
+    border-radius: 50%;
+    padding: 0 5px;
+    font-size: 10px;
+    font-weight: bold;
+}
+
+/* Kurucu Paneli */
+.admin-panel {
+    background: var(--sidebar-hover);
+    border: 2px dashed var(--yt-blue);
+    padding: 25px;
+    border-radius: 15px;
+    margin-bottom: 30px;
+}
+
+.publish-btn {
+    background: var(--yt-blue);
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 5px;
+    font-weight: bold;
+    cursor: pointer;
+    margin-top: 10px;
+}
+
+/* Google Butonu */
+.google-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 15px;
+    border-radius: 20px;
+    border: 1px solid var(--border-color);
+    background: white;
+    color: black;
     font-weight: 500;
-    margin: 0;
-    line-height: 2.2rem;
-}
-
-.video-meta {
-    font-size: 14px;
-    color: var(--secondary-text);
+    cursor: pointer;
 }
