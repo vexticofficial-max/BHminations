@@ -1,11 +1,13 @@
-/* Genel Ayarlar ve Renk Değişkenleri */
+/* Değişkenler ve Tema Renkleri */
 :root {
-    --bg-color: #ffffff;
+    --bg-color: #f9f9f9;
     --text-color: #0f0f0f;
     --border-color: #e5e5e5;
+    --yt-red: #ff0000;
     --yt-blue: #3ea6ff;
     --sidebar-hover: #f2f2f2;
     --header-bg: #ffffff;
+    --card-bg: #ffffff;
 }
 
 /* Karanlık Mod Renkleri */
@@ -15,6 +17,7 @@
     --border-color: #3f3f3f;
     --sidebar-hover: #272727;
     --header-bg: #0f0f0f;
+    --card-bg: #0f0f0f;
 }
 
 body {
@@ -22,7 +25,7 @@ body {
     font-family: 'Roboto', sans-serif;
     background-color: var(--bg-color);
     color: var(--text-color);
-    transition: background 0.3s, color 0.3s;
+    transition: background 0.3s;
 }
 
 /* Header Tasarımı */
@@ -39,17 +42,15 @@ header {
 }
 
 .header-left { display: flex; align-items: center; gap: 20px; }
-.menu-icon { font-size: 20px; cursor: pointer; }
-.logo { font-size: 20px; font-weight: bold; cursor: pointer; }
+.logo { font-size: 20px; font-weight: bold; cursor: pointer; color: var(--yt-red); }
 
 .search-bar {
-    width: 400px;
+    width: 450px;
     padding: 10px 16px;
     border: 1px solid var(--border-color);
     border-radius: 40px 0 0 40px;
     background: var(--bg-color);
     color: var(--text-color);
-    outline: none;
 }
 
 .search-btn {
@@ -61,7 +62,7 @@ header {
     cursor: pointer;
 }
 
-/* Ana Düzen (Layout) */
+/* Ana Düzen */
 .main-layout { display: flex; }
 
 .sidebar {
@@ -70,6 +71,7 @@ header {
     padding: 12px;
     position: sticky;
     top: 56px;
+    border-right: 1px solid var(--border-color);
 }
 
 .sidebar li {
@@ -80,79 +82,79 @@ header {
     display: flex;
     align-items: center;
     gap: 20px;
-    transition: 0.2s;
+    font-weight: 400;
 }
 
 .sidebar li:hover { background: var(--sidebar-hover); }
+.sidebar li.active { background: var(--sidebar-hover); font-weight: 500; }
 
-/* Video Kartları */
+/* Video Grid ve Kartlar */
 .content { flex: 1; padding: 24px; }
 
 .video-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
     gap: 20px;
 }
 
-.video-card { cursor: pointer; }
-
-.thumbnail {
-    width: 100%;
-    aspect-ratio: 16/9;
+.video-card {
+    background: var(--card-bg);
     border-radius: 12px;
-    object-fit: cover;
-    background: #555;
+    overflow: hidden;
+    transition: transform 0.2s;
 }
 
-/* Öne Çıkan (Featured) Kartlar */
+.video-card:hover { transform: scale(1.02); }
+
+/* Öne Çıkanlar (Mavi Tikli Olanlar) */
 .video-card.featured {
-    border: 2px solid var(--yt-blue);
-    box-shadow: 0 0 15px rgba(62, 166, 255, 0.2);
-    border-radius: 15px;
-    padding: 10px;
-    background: var(--sidebar-hover);
+    border: 1px solid var(--yt-blue);
+    box-shadow: 0 0 10px rgba(62, 166, 255, 0.1);
 }
 
 /* Onaylı Rozet */
 .verified-badge {
-    background: var(--yt-blue);
-    color: white;
-    border-radius: 50%;
-    padding: 0 5px;
-    font-size: 10px;
-    font-weight: bold;
+    color: var(--yt-blue);
+    font-size: 14px;
+    margin-left: 5px;
 }
 
-/* Kurucu Paneli */
+/* Admin Paneli Stylingi */
 .admin-panel {
     background: var(--sidebar-hover);
-    border: 2px dashed var(--yt-blue);
-    padding: 25px;
+    border: 1px solid var(--yt-blue);
+    padding: 20px;
     border-radius: 15px;
     margin-bottom: 30px;
+}
+
+.admin-section input {
+    width: 90%;
+    padding: 10px;
+    margin: 10px 0;
+    border-radius: 5px;
+    border: 1px solid var(--border-color);
+    background: var(--bg-color);
+    color: var(--text-color);
 }
 
 .publish-btn {
     background: var(--yt-blue);
     color: white;
     border: none;
-    padding: 10px 20px;
+    padding: 12px 24px;
     border-radius: 5px;
     font-weight: bold;
     cursor: pointer;
-    margin-top: 10px;
 }
 
 /* Google Butonu */
 .google-btn {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 8px 15px;
+    padding: 8px 16px;
     border-radius: 20px;
     border: 1px solid var(--border-color);
-    background: white;
-    color: black;
+    background: transparent;
+    color: var(--yt-blue);
     font-weight: 500;
     cursor: pointer;
 }
