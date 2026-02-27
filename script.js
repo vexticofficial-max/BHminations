@@ -1,240 +1,129 @@
-<!DOCTYPE html>
-<html lang="tr">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BHminations - Kurucu Paneli</title>
-    
-    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
-    
-    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+/**
+ * BHminations - Profesyonel Video Platformu Scripti
+ * Kurucu: Alper (bluehairkomsi@gmail.com)
+ */
 
-    <style>
-        /* TASARIM BURADA - CSS DOSYASINA GEREK YOK */
-        :root {
-            --bg: #f9f9f9;
-            --txt: #0f0f0f;
-            --header: #ffffff;
-            --card: #ffffff;
-            --border: #e5e5e5;
-            --blue: #3ea6ff;
+// --- 1. FIREBASE YAPILANDIRMASI ---
+const firebaseConfig = {
+    apiKey: "AIzaSyAaDFdyia63SMjnBreMRUQbCPs4foUHFl8",
+    authDomain: "bhminations.firebaseapp.com",
+    projectId: "bhminations",
+    storageBucket: "bhminations.firebasestorage.app",
+    messagingSenderId: "606037209431",
+    appId: "1:606037209431:web:a1968ebb1673475deb8e12"
+};
+
+// Sistem Başlatma
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.firestore();
+const provider = new firebase.auth.GoogleAuthProvider();
+
+// --- 2. OTURUM YÖNETİMİ ---
+function googleLogin() {
+    auth.signInWithPopup(provider).catch(err => alert("Giriş Hatası: " + err.message));
+}
+
+auth.onAuthStateChanged(user => {
+    const loginBtn = document.getElementById('login-btn');
+    const userProfile = document.getElementById('user-profile');
+    const adminMenu = document.getElementById('admin-menu');
+    const uploadSection = document.getElementById('upload-section'); // HTML'de bu ID olmalı
+
+    if (user) {
+        // Arayüz Güncelleme
+        if(loginBtn) loginBtn.style.display = 'none';
+        if(userProfile) userProfile.style.display = 'flex';
+        document.getElementById('user-img').src = user.photoURL;
+        document.getElementById('display-name').innerText = user.displayName;
+
+        // HERKESE VİDEO YÜKLEME ALANINI GÖSTER
+        // (Eğer index'te bu alan varsa görünür olur)
+        if(document.getElementById('public-upload')) {
+            document.getElementById('public-upload').style.display = 'block';
         }
 
-        .dark-mode {
-            --bg: #0f0f0f;
-            --txt: #ffffff;
-            --header: #0f0f0f;
-            --card: #1e1e1e;
-            --border: #383838;
+        // KURUCU KONTROLÜ (Alper Özel)
+        if (user.email === "bluehairkomsi@gmail.com") {
+            adminMenu.style.display = 'block';
+            document.getElementById('global-verified-badge').style.display = 'inline-block';
+            console.log("Hoş geldin Kurucu Alper! Yetkiler tanımlandı. ✅");
         }
-
-        body {
-            margin: 0;
-            font-family: 'Roboto', sans-serif;
-            background-color: var(--bg);
-            color: var(--txt);
-            transition: 0.3s;
-        }
-
-        header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 8px 16px;
-            background: var(--header);
-            border-bottom: 1px solid var(--border);
-            position: sticky;
-            top: 0;
-            z-index: 1000;
-        }
-
-        .logo { font-size: 20px; font-weight: bold; color: #ff0000; cursor: pointer; }
-
-        .main-layout { display: flex; }
-
-        .sidebar {
-            width: 240px;
-            height: 100vh;
-            padding: 12px;
-            border-right: 1px solid var(--border);
-            background: var(--header);
-        }
-
-        .sidebar li {
-            list-style: none;
-            padding: 12px;
-            border-radius: 8px;
-            cursor: pointer;
-            margin-bottom: 5px;
-        }
-
-        .sidebar li:hover { background: rgba(0,0,0,0.05); }
-        .dark-mode .sidebar li:hover { background: rgba(255,255,255,0.1); }
-
-        .content { flex: 1; padding: 24px; }
-
-        .video-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-            gap: 20px;
-        }
-
-        /* Admin Paneli */
-        .admin-panel {
-            background: var(--card);
-            border: 2px solid var(--blue);
-            padding: 20px;
-            border-radius: 12px;
-            margin-bottom: 30px;
-        }
-
-        input {
-            width: 100%;
-            padding: 10px;
-            margin: 10px 0;
-            border: 1px solid var(--border);
-            border-radius: 6px;
-            background: var(--bg);
-            color: var(--txt);
-            box-sizing: border-box;
-        }
-
-        .publish-btn {
-            background: var(--blue);
-            color: white;
-            border: none;
-            padding: 12px;
-            width: 100%;
-            border-radius: 6px;
-            cursor: pointer;
-            font-weight: bold;
-        }
-
-        .verified-badge { color: var(--blue); margin-left: 5px; font-weight: bold; }
         
-        button { cursor: pointer; }
-    </style>
-</head>
-<body>
+        loadVideos(); // Videoları Firestore'dan çek
+    }
+});
 
-    <header>
-        <div class="logo">BHminations</div>
-        <div style="display: flex; gap: 15px; align-items: center;">
-            <button onclick="toggleTheme()" style="background:none; border:none; font-size:20px;">🌙</button>
-            <button id="login-btn" onclick="googleLogin()" style="background:var(--blue); color:white; border:none; padding:8px 16px; border-radius:20px;">Oturum aç</button>
-            <div id="user-profile" style="display:none; align-items:center; gap: 8px;">
-                <img id="user-img" style="width:32px; height:32px; border-radius:50%;">
-                <span id="display-name" style="font-weight: 500;"></span>
-                <span id="global-verified" class="verified-badge" style="display:none;">✔</span>
-            </div>
-        </div>
-    </header>
+// --- 3. VİDEO YÜKLEME (HERKES İÇİN) ---
+async function publishVideo() {
+    const title = document.getElementById('v-title').value;
+    const url = document.getElementById('v-url').value;
+    
+    if (!title || !url) return alert("Başlık ve link boş olamaz!");
 
-    <div class="main-layout">
-        <nav class="sidebar">
-            <li onclick="location.reload()">🏠 Anasayfa</li>
-            <li>🔥 Trendler</li>
-            <div id="admin-menu" style="display:none; border-top: 1px solid var(--border); margin-top: 20px; padding-top: 10px;">
-                <li onclick="showAdmin()" style="color: var(--blue); font-weight: bold;">🛠️ Yönetim Paneli</li>
-            </div>
-        </nav>
+    // YouTube ID Çözücü
+    let videoId = url.split('v=')[1] || url.split('/').pop();
+    if (videoId.includes('&')) videoId = videoId.split('&')[0];
 
-        <main class="content">
-            <div id="admin-panel" class="admin-panel" style="display:none;">
-                <h3 style="margin:0;">🚀 Alper, Video Yayınla</h3>
-                <input type="text" id="v-title" placeholder="Video Başlığı">
-                <input type="text" id="v-url" placeholder="YouTube Linki (Örn: https://youtu.be/...)">
-                <label><input type="checkbox" id="v-check"> Mavi Tikli Yayınla</label>
-                <button onclick="publish()" class="publish-btn" style="margin-top:15px;">YAYINLA</button>
-            </div>
+    try {
+        await db.collection("videos").add({
+            title: title,
+            videoId: videoId,
+            uploaderName: auth.currentUser.displayName,
+            uploaderImg: auth.currentUser.photoURL,
+            uploaderEmail: auth.currentUser.email,
+            isVerified: (auth.currentUser.email === "bluehairkomsi@gmail.com"), // Alper ise otomatik onaylı
+            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        alert("Animasyonun başarıyla yüklendi! 🚀");
+        location.reload();
+    } catch (err) {
+        alert("Firestore hatası: Veritabanı kurallarını kontrol et!");
+    }
+}
 
-            <h2 id="main-title">Önerilen Animasyonlar</h2>
-            <div id="video-grid" class="video-grid">
-                </div>
-        </main>
-    </div>
+// --- 4. VİDEOLARI LİSTELEME (PRO SİSTEM) ---
+function loadVideos() {
+    const grid = document.getElementById('video-grid');
+    grid.innerHTML = ''; // Temizle
 
-    <script>
-        // --- FIREBASE AYARLARI ---
-        const firebaseConfig = {
-            apiKey: "AIzaSyAaDFdyia63SMjnBreMRUQbCPs4foUHFl8",
-            authDomain: "bhminations.firebaseapp.com",
-            projectId: "bhminations",
-            storageBucket: "bhminations.firebasestorage.app",
-            messagingSenderId: "606037209431",
-            appId: "1:606037209431:web:a1968ebb1673475deb8e12"
-        };
-
-        firebase.initializeApp(firebaseConfig);
-        const auth = firebase.auth();
-        const provider = new firebase.auth.GoogleAuthProvider();
-
-        // --- BUTON FONKSİYONLARI ---
-        
-        // 1. Karanlık Mod (Kesin Çalışır)
-        function toggleTheme() {
-            document.body.classList.toggle('dark-mode');
-            const isDark = document.body.classList.contains('dark-mode');
-            document.querySelector('.header-right button').innerText = isDark ? '☀️' : '🌙';
-        }
-
-        // 2. Google Giriş
-        function googleLogin() {
-            auth.signInWithPopup(provider).catch(err => alert("Hata: " + err.message));
-        }
-
-        // 3. Admin Paneli Göster/Gizle
-        function showAdmin() {
-            const p = document.getElementById('admin-panel');
-            p.style.display = p.style.display === 'none' ? 'block' : 'none';
-        }
-
-        // 4. Video Yayınla
-        function publish() {
-            const title = document.getElementById('v-title').value;
-            const url = document.getElementById('v-url').value;
-            const checked = document.getElementById('v-check').checked;
-
-            if(!title || !url) return alert("Boş bırakma Alper!");
-
-            let id = url.split('v=')[1] || url.split('/').pop();
-            if(id.includes('&')) id = id.split('&')[0];
-
-            const grid = document.getElementById('video-grid');
+    db.collection("videos").orderBy("createdAt", "desc").onSnapshot(snapshot => {
+        grid.innerHTML = '';
+        snapshot.forEach(doc => {
+            const data = doc.data();
+            const isAdmin = auth.currentUser && auth.currentUser.email === "bluehairkomsi@gmail.com";
+            
             const card = document.createElement('div');
-            card.style.background = 'var(--card)';
-            card.style.borderRadius = '12px';
-            card.style.overflow = 'hidden';
-            card.style.border = '1px solid var(--border)';
+            card.className = 'v-card';
+            card.style.cssText = "background:var(--card); border-radius:12px; overflow:hidden; border:1px solid var(--border); position:relative;";
 
             card.innerHTML = `
-                <iframe width="100%" height="180" src="https://www.youtube.com/embed/${id}" frameborder="0" allowfullscreen></iframe>
+                <iframe width="100%" height="180" src="https://www.youtube.com/embed/${data.videoId}" frameborder="0" allowfullscreen></iframe>
                 <div style="padding:12px;">
-                    <h4 style="margin:0;">${title} ${checked ? '<span class="verified-badge">✔</span>' : ''}</h4>
-                    <p style="font-size:12px; color:gray; margin:5px 0;">Yükleyen: ${auth.currentUser.displayName}</p>
+                    <h4 style="margin:0;">${data.title} ${data.isVerified ? '<span style="color:#3ea6ff;">✔</span>' : ''}</h4>
+                    <p style="font-size:12px; color:gray; margin:5px 0;">${data.uploaderName}</p>
+                    ${isAdmin ? `<button onclick="deleteVideo('${doc.id}')" style="background:#ff0000; color:white; border:none; padding:5px; border-radius:4px; cursor:pointer; font-size:10px;">VİDEOYU SİL (KURUCU)</button>` : ''}
                 </div>
             `;
-            grid.prepend(card);
-            alert("Video başarıyla eklendi! 🚀");
-        }
-
-        // 5. Giriş Yapınca Ne Olacak?
-        auth.onAuthStateChanged(user => {
-            if (user) {
-                document.getElementById('login-btn').style.display = 'none';
-                document.getElementById('user-profile').style.display = 'flex';
-                document.getElementById('user-img').src = user.photoURL;
-                document.getElementById('display-name').innerText = user.displayName;
-
-                // SENİN MAİLİN: bluehairkomsi@gmail.com
-                if (user.email === "bluehairkomsi@gmail.com") {
-                    document.getElementById('admin-menu').style.display = 'block';
-                    document.getElementById('global-verified').style.display = 'inline-block';
-                }
-            }
+            grid.appendChild(card);
         });
-    </script>
-</body>
-</html>
+    });
+}
+
+// --- 5. KURUCU ÖZEL GÜCÜ: VİDEO SİLME ---
+async function deleteVideo(docId) {
+    if (confirm("Alper, bu videoyu silmek istediğine emin misin?")) {
+        await db.collection("videos").doc(docId).delete();
+        alert("Video sistemden kaldırıldı. 🗑️");
+    }
+}
+
+// --- 6. TEMA DEĞİŞTİRİCİ ---
+function toggleTheme() {
+    document.body.classList.toggle('dark-mode');
+    const isDark = document.body.classList.contains('dark-mode');
+    localStorage.setItem('theme', isDark ? 'dark' : 'light'); // Tercihi kaydet
+}
+
+// Sayfa açıldığında eski temayı hatırla
+if(localStorage.getItem('theme') === 'dark') document.body.classList.add('dark-mode');
