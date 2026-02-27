@@ -1,78 +1,103 @@
 :root {
     --bg-color: #ffffff;
-    --text-color: #030303;
-    --header-bg: #ffffff;
-    --sidebar-hover: #f2f2f2;
-    --search-bg: #f8f8f8;
+    --text-color: #0f0f0f;
+    --secondary-text: #606060;
+    --border-color: #e5e5e5;
+    --hover-color: #f2f2f2;
 }
 
 .dark-mode {
     --bg-color: #0f0f0f;
     --text-color: #ffffff;
-    --header-bg: #0f0f0f;
-    --sidebar-hover: #3f3f3f;
-    --search-bg: #121212;
+    --secondary-text: #aaaaaa;
+    --border-color: #3f3f3f;
+    --hover-color: #272727;
 }
 
 body {
     background-color: var(--bg-color);
     color: var(--text-color);
     margin: 0;
-    font-family: Roboto, Arial, sans-serif;
-    transition: 0.3s;
+    font-family: "Roboto", Arial, sans-serif;
+    transition: 0.2s;
 }
 
 header {
     display: flex;
     justify-content: space-between;
-    padding: 10px 20px;
-    background: var(--header-bg);
+    padding: 8px 16px;
+    background: var(--bg-color);
+    border-bottom: 1px solid var(--border-color);
     position: sticky;
     top: 0;
+    z-index: 100;
+}
+
+/* Arama Çubuğu Tasarımı */
+.search-container {
+    display: flex;
     align-items: center;
-    border-bottom: 1px solid #e5e5e5;
 }
 
 .search-bar {
     width: 500px;
-    padding: 8px 15px;
-    border: 1px solid #ccc;
-    border-radius: 20px 0 0 20px;
-    background: var(--search-bg);
+    padding: 10px 16px;
+    border: 1px solid var(--border-color);
+    border-radius: 40px 0 0 40px;
+    background: var(--bg-color);
     color: var(--text-color);
+    outline: none;
 }
 
-.verified-badge {
-    background: #3ea6ff;
-    color: white;
-    border-radius: 50%;
-    padding: 0 5px;
-    font-size: 10px;
-    margin-left: 4px;
+.search-btn {
+    padding: 9px 20px;
+    border: 1px solid var(--border-color);
+    border-left: none;
+    border-radius: 0 40px 40px 0;
+    cursor: pointer;
+    background: var(--hover-color);
 }
-
-.container { display: flex; }
 
 .sidebar {
     width: 240px;
-    height: 100vh;
-    padding: 15px;
+    padding: 12px;
 }
 
-.sidebar ul { list-style: none; padding: 0; }
-.sidebar li { padding: 12px; border-radius: 10px; cursor: pointer; }
-.sidebar li:hover { background: var(--sidebar-hover); }
-
-.video-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+.sidebar li {
+    padding: 10px 12px;
+    border-radius: 10px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
     gap: 20px;
-    padding: 20px;
 }
 
-.video-card .thumbnail {
+.sidebar li:hover { background: var(--hover-color); }
+
+/* Video Kartı Tasarımı (YouTube Stili) */
+.video-card {
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.thumbnail-box {
     width: 100%;
     aspect-ratio: 16/9;
-    background: #888;
+    background: #ccc;
     border-radius: 12px;
+    overflow: hidden;
+}
+
+.video-title {
+    font-size: 16px;
+    font-weight: 500;
+    margin: 0;
+    line-height: 2.2rem;
+}
+
+.video-meta {
+    font-size: 14px;
+    color: var(--secondary-text);
 }
