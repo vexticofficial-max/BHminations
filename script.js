@@ -1,84 +1,89 @@
-// --- 1. FIREBASE CONFIG ---
-const firebaseConfig = {
-    apiKey: "AIzaSyAaDFdyia63SMjnBreMRUQbCPs4foUHFl8",
-    authDomain: "bhminations.firebaseapp.com",
-    projectId: "bhminations",
-    storageBucket: "bhminations.firebasestorage.app",
-    messagingSenderId: "606037209431",
-    appId: "1:606037209431:web:a1968ebb1673475deb8e12",
-    measurementId: "G-B7FV7X7F1H"
-};
-
-// Başlatma
-firebase.initializeApp(firebaseConfig);
-const auth = firebase.auth();
-const db = firebase.firestore();
-const provider = new firebase.auth.GoogleAuthProvider();
-
-// --- 2. OTURUM YÖNETİMİ ---
-function googleLogin() {
-    auth.signInWithPopup(provider).then((result) => {
-        handleUser(result.user);
-    }).catch(err => console.error("Giriş Hatası:", err));
-}
-
-function handleUser(user) {
-    const loginBtn = document.getElementById('login-btn');
-    const userProfile = document.getElementById('user-profile');
-    const userImg = document.getElementById('user-img');
-    const displayName = document.getElementById('display-name');
-    const adminPanel = document.getElementById('admin-panel');
-    const globalVerified = document.getElementById('global-verified-badge');
-
-    if (user) {
-        loginBtn.style.display = 'none';
-        userProfile.style.display = 'flex';
-        userImg.src = user.photoURL;
-        displayName.innerText = user.displayName;
-
-        // KURUCU KONTROLÜ (Buraya kendi mailini yazmayı unutma Alper!)
-        if (user.email === "seninmailin@gmail.com") { 
-            adminPanel.style.display = 'block';
-            globalVerified.style.display = 'inline-block';
-        }
-    } else {
-        loginBtn.style.display = 'flex';
-        userProfile.style.display = 'none';
-        adminPanel.style.display = 'none';
-    }
-}
-
-// --- 3. VİDEO YAYINLAMA ---
-function publishVideo() {
-    const title = document.getElementById('v-title').value;
-    const url = document.getElementById('v-url').value;
-    const isFeatured = document.getElementById('v-featured').checked;
-
-    if(!title || !url) return alert("Boş alan bırakma Alper!");
-
-    const grid = document.getElementById('video-grid');
-    const card = document.createElement('div');
-    card.className = isFeatured ? 'video-card featured' : 'video-card';
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BHminations - Animasyon Platformu</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
     
-    card.innerHTML = `
-        <img src="${url}" class="thumbnail">
-        <div style="padding: 10px 0;">
-            <h4 style="margin:0;">${title} ${isFeatured ? '<span class="verified-badge" style="display:inline-block">✔</span>' : ''}</h4>
-            <p style="font-size:13px; color:gray; margin:5px 0;">BHminations Studio</p>
-            <p style="font-size:12px; color:#3ea6ff; font-weight:bold;">${isFeatured ? '🔥 ÖNE ÇIKAN' : 'Yeni Video'}</p>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+    
+    <link rel="stylesheet" href="style.css">
+</head>
+<body class="light-mode">
+    <header>
+        <div class="header-left">
+            <div class="menu-icon">☰</div>
+            <div class="logo" onclick="location.reload()">BHminations</div>
         </div>
-    `;
-    grid.appendChild(card);
-    
-    // Formu temizle
-    document.getElementById('v-title').value = "";
-    document.getElementById('v-url').value = "";
-}
+        
+        <div class="header-middle">
+            <div class="search-container">
+                <input type="text" placeholder="Animasyon ara..." class="search-bar">
+                <button class="search-btn">🔍</button>
+            </div>
+        </div>
+        
+        <div class="header-right">
+            <button onclick="toggleTheme()" class="theme-btn">🌙</button>
+            <button id="login-btn" class="google-btn" onclick="googleLogin()">Oturum aç</button>
+            
+            <div id="user-profile" style="display:none; align-items:center; gap: 10px;">
+                <img id="user-img" style="width:32px; height:32px; border-radius:50%;">
+                <span id="display-name" style="font-weight: 500;"></span>
+                <span id="global-verified-badge" class="verified-badge" style="display:none;">✔</span>
+            </div>
+        </div>
+    </header>
 
-// --- 4. ARAYÜZ AYARLARI ---
-function toggleTheme() {
-    document.body.classList.toggle('dark-mode');
-}
+    <div class="main-layout">
+        <nav class="sidebar">
+            <ul>
+                <li class="active">🏠 <span>Anasayfa</span></li>
+                <li>🔥 <span>Trendler</span></li>
+                <li>🎞️ <span>Abonelikler</span></li>
+                <hr>
+                <div id="admin-menu" style="display:none;">
+                    <p style="padding-left:15px; font-size:11px; color:gray; font-weight: bold;">YÖNETİCİ</p>
+                    <li onclick="showAdminPanel()">🛠️ <span>Kurucu Paneli</span></li>
+                </div>
+            </ul>
+        </nav>
 
-// Oturumu Sürekli Takip Et
-auth.onAuthStateChanged(handleUser);
+        <main class="content">
+            <div class="admin-panel" id="admin-panel" style="display:none;">
+                <h3>🛠️ BHminations Yönetim Merkezi</h3>
+                
+                <div class="admin-section">
+                    <h4>📤 YouTube Videosu Ekle</h4>
+                    <input type="text" id="v-title" placeholder="Video Başlığı">
+                    <input type="text" id="v-yt-url" placeholder="YouTube Linkini Buraya Yapıştır">
+                    <div style="margin: 10px 0;">
+                        <label><input type="checkbox" id="v-featured"> Öne Çıkar (Mavi Tikli Kart)</label>
+                    </div>
+                    <button onclick="publishYTVideo()" class="publish-btn">Sisteme Yükle</button>
+                </div>
+
+                <hr style="margin: 20px 0; border: 0.5px solid var(--border-color);">
+
+                <div class="admin-section">
+                    <h4>🚫 Üye Yönetimi</h4>
+                    <input type="text" id="target-email" placeholder="Kullanıcı E-postası">
+                    <div style="display:flex; gap:10px; margin-top:10px;">
+                        <button onclick="manageUser('verify')" style="background: #2ba640; color: white; border:none; padding:8px; border-radius:5px; cursor:pointer;">Mavi Tik Ver</button>
+                        <button onclick="manageUser('ban')" style="background: #cc0000; color: white; border:none; padding:8px; border-radius:5px; cursor:pointer;">Kullanıcıyı Yasakla</button>
+                    </div>
+                </div>
+            </div>
+
+            <h2 id="main-title">Önerilen Animasyonlar</h2>
+            <div class="video-grid" id="video-grid">
+                </div>
+        </main>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
