@@ -4,55 +4,183 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>BHminations - Animasyon Platformu</title>
-    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+    
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+    
+    <style>
+        :root {
+            --bg-color: #ffffff;
+            --text-color: #0f0f0f;
+            --border-color: #e5e5e5;
+            --yt-blue: #3ea6ff;
+            --sidebar-hover: #f2f2f2;
+        }
+
+        .dark-mode {
+            --bg-color: #0f0f0f;
+            --text-color: #ffffff;
+            --border-color: #3f3f3f;
+            --sidebar-hover: #272727;
+        }
+
+        body { margin: 0; font-family: 'Roboto', sans-serif; background: var(--bg-color); color: var(--text-color); transition: 0.3s; }
+
+        /* Üst Menü */
+        header {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 8px 16px; background: var(--bg-color); border-bottom: 1px solid var(--border-color);
+            position: sticky; top: 0; z-index: 1000;
+        }
+
+        .logo { font-size: 22px; font-weight: bold; color: var(--text-color); cursor: pointer; }
+        
+        .header-right { display: flex; align-items: center; gap: 15px; }
+
+        .verified-badge {
+            background: var(--yt-blue); color: white; border-radius: 50%;
+            padding: 0 6px; font-size: 11px; margin-left: 5px; display: none;
+        }
+
+        /* Video Kartları */
+        .video-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; padding: 20px; }
+        
+        .video-card { cursor: pointer; transition: transform 0.2s; }
+        .video-card:hover { transform: scale(1.02); }
+        
+        .thumbnail { width: 100%; aspect-ratio: 16/9; background: #555; border-radius: 12px; object-fit: cover; }
+
+        /* Onaylı (Öne Çıkan) Tasarımı */
+        .video-card.featured {
+            border: 2px solid var(--yt-blue);
+            box-shadow: 0 0 15px rgba(62, 166, 255, 0.2);
+            border-radius: 15px;
+            padding: 8px;
+            order: -1; /* Sayfada en başa alır */
+        }
+
+        /* Admin Paneli */
+        .admin-panel {
+            background: var(--sidebar-hover); border: 2px dashed var(--yt-blue);
+            padding: 20px; margin: 20px; border-radius: 12px; display: none;
+        }
+
+        input { padding: 10px; border-radius: 8px; border: 1px solid var(--border-color); margin-bottom: 10px; width: 250px; }
+        
+        .google-btn {
+            cursor: pointer; padding: 8px 16px; border-radius: 20px; border: 1px solid var(--border-color);
+            background: white; color: black; display: flex; align-items: center; gap: 8px; font-weight: 500;
+        }
+
+        .user-img { width: 32px; height: 32px; border-radius: 50%; }
+    </style>
 </head>
 <body class="light-mode">
-    
-    <header id="header">
-        <div class="header-left">
-            <div class="menu-icon">☰</div>
-            <div class="logo">BHminations</div>
-        </div>
-        
-        <div class="header-middle">
-            <div class="search-container">
-                <input type="text" placeholder="Animasyon ara..." class="search-bar">
-                <button class="search-btn">🔍</button>
-            </div>
-        </div>
 
+    <header>
+        <div class="logo">BHminations</div>
         <div class="header-right">
-            <button id="theme-toggle" class="icon-btn">🌙</button>
-            <div class="user-info">
-                <img src="avatar.png" class="user-avatar" alt="Alper">
-                <span class="verified-badge">✔</span>
+            <button onclick="toggleTheme()" style="background:none; border:none; cursor:pointer; font-size:20px;">🌙</button>
+            <button id="login-btn" class="google-btn" onclick="googleLogin()">Oturum aç</button>
+            <div id="user-profile" style="display:none; align-items:center;">
+                <img id="user-img" class="user-img">
+                <span id="display-name" style="margin-left:8px; font-weight: 500;"></span>
+                <span id="global-verified-badge" class="verified-badge">✔</span>
             </div>
         </div>
     </header>
 
-    <div class="container">
-        <nav class="sidebar">
-            <ul>
-                <li class="active">🏠 <span>Anasayfa</span></li>
-                <li>🎞️ <span>Videolarım</span></li>
-                <li>🔥 <span>Trendler</span></li>
-                <hr>
-                <li>⚙️ <span>Ayarlar</span></li>
-            </ul>
-        </nav>
+    <main>
+        <div class="admin-panel" id="admin-panel">
+            <h3>🛠️ Kurucu Paneli (Alper)</h3>
+            <p>Sadece sen bu paneli görebilirsin.</p>
+            <input type="text" id="v-title" placeholder="Video Başlığı">
+            <input type="text" id="v-url" placeholder="Görsel/Video Kapak URL">
+            <br>
+            <label><input type="checkbox" id="v-featured"> Bu kullanıcıyı ÖNE ÇIKAR (Mavi Tik)</label>
+            <br><br>
+            <button onclick="publishVideo()" style="padding: 10px 20px; background: var(--yt-blue); color:white; border:none; border-radius:5px; cursor:pointer;">Videoyu Yayınla</button>
+        </div>
 
-        <main class="content">
-            <section class="upload-section">
-                <input type="text" id="video-title" placeholder="Video Başlığı">
-                <input type="file" id="video-file" accept="video/*">
-                <button onclick="handleUpload()" class="upload-btn">Yükle</button>
-            </section>
+        <h2 style="padding-left: 20px;">Önerilen Animasyonlar</h2>
+        <div class="video-grid" id="video-grid">
+            </div>
+    </main>
 
-            <h2 id="main-title">Önerilen Animasyonlar</h2>
-            <div class="video-grid" id="video-grid"></div>
-        </main>
-    </div>
+    <script>
+        // 1. FIREBASE CONFIG (Senin verdiğin bilgiler)
+        const firebaseConfig = {
+            apiKey: "AIzaSyAaDFdyia63SMjnBreMRUQbCPs4foUHFl8",
+            authDomain: "bhminations.firebaseapp.com",
+            projectId: "bhminations",
+            storageBucket: "bhminations.firebasestorage.app",
+            messagingSenderId: "606037209431",
+            appId: "1:606037209431:web:a1968ebb1673475deb8e12",
+            measurementId: "G-B7FV7X7F1H"
+        };
 
-    <script src="script.js"></script>
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const db = firebase.firestore();
+        const provider = new firebase.auth.GoogleAuthProvider();
+
+        // 2. GİRİŞ SİSTEMİ
+        function googleLogin() {
+            auth.signInWithPopup(provider).then((result) => {
+                handleUser(result.user);
+            }).catch(err => alert("Giriş hatası: " + err.message));
+        }
+
+        function handleUser(user) {
+            if (user) {
+                document.getElementById('login-btn').style.display = 'none';
+                document.getElementById('user-profile').style.display = 'flex';
+                document.getElementById('user-img').src = user.photoURL;
+                document.getElementById('display-name').innerText = user.displayName;
+
+                // 3. BURAYI KENDİ MAİLİNLE DEĞİŞTİR!
+                if (user.email === "bluehairkomsi@gmail.com") { 
+                    document.getElementById('admin-panel').style.display = 'block';
+                    document.getElementById('global-verified-badge').style.display = 'inline-block';
+                }
+            }
+        }
+
+        // 4. VİDEO YAYINLAMA MANTIĞI
+        function publishVideo() {
+            const title = document.getElementById('v-title').value;
+            const url = document.getElementById('v-url').value;
+            const isFeatured = document.getElementById('v-featured').checked;
+
+            if(!title || !url) return alert("Bilgileri doldur dostum!");
+
+            const grid = document.getElementById('video-grid');
+            const card = document.createElement('div');
+            card.className = isFeatured ? 'video-card featured' : 'video-card';
+            
+            card.innerHTML = `
+                <img src="${url}" class="thumbnail">
+                <div style="padding: 10px 0;">
+                    <h4 style="margin:0;">${title} ${isFeatured ? '<span class="verified-badge" style="display:inline-block">✔</span>' : ''}</h4>
+                    <p style="font-size:13px; color:gray; margin:5px 0;">BHminations Studio</p>
+                    <p style="font-size:12px; color:var(--yt-blue); font-weight:bold;">${isFeatured ? '🔥 ÖNE ÇIKAN' : 'Yeni Video'}</p>
+                </div>
+            `;
+            grid.appendChild(card);
+            
+            // Temizlik
+            document.getElementById('v-title').value = "";
+            document.getElementById('v-url').value = "";
+        }
+
+        function toggleTheme() {
+            document.body.classList.toggle('dark-mode');
+        }
+
+        // Kullanıcıyı hatırla
+        auth.onAuthStateChanged(handleUser);
+    </script>
 </body>
 </html>
