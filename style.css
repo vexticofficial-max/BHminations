@@ -1,23 +1,24 @@
-/* Değişkenler ve Tema Renkleri */
+/* Ana Renk Değişkenleri */
 :root {
     --bg-color: #f9f9f9;
     --text-color: #0f0f0f;
-    --border-color: #e5e5e5;
-    --yt-red: #ff0000;
-    --yt-blue: #3ea6ff;
-    --sidebar-hover: #f2f2f2;
     --header-bg: #ffffff;
+    --sidebar-hover: #f2f2f2;
+    --border-color: #e5e5e5;
     --card-bg: #ffffff;
+    --yt-blue: #065fd4;
+    --yt-red: #ff0000;
 }
 
 /* Karanlık Mod Renkleri */
 .dark-mode {
     --bg-color: #0f0f0f;
     --text-color: #ffffff;
-    --border-color: #3f3f3f;
-    --sidebar-hover: #272727;
     --header-bg: #0f0f0f;
-    --card-bg: #0f0f0f;
+    --sidebar-hover: #272727;
+    --border-color: #3f3f3f;
+    --card-bg: #1e1e1e;
+    --yt-blue: #3ea6ff;
 }
 
 body {
@@ -25,7 +26,7 @@ body {
     font-family: 'Roboto', sans-serif;
     background-color: var(--bg-color);
     color: var(--text-color);
-    transition: background 0.3s;
+    transition: background 0.3s ease;
 }
 
 /* Header Tasarımı */
@@ -42,15 +43,16 @@ header {
 }
 
 .header-left { display: flex; align-items: center; gap: 20px; }
-.logo { font-size: 20px; font-weight: bold; cursor: pointer; color: var(--yt-red); }
+.logo { font-size: 22px; font-weight: bold; color: var(--yt-red); cursor: pointer; letter-spacing: -1px; }
 
 .search-bar {
-    width: 450px;
+    width: 400px;
     padding: 10px 16px;
     border: 1px solid var(--border-color);
     border-radius: 40px 0 0 40px;
     background: var(--bg-color);
     color: var(--text-color);
+    outline: none;
 }
 
 .search-btn {
@@ -62,12 +64,13 @@ header {
     cursor: pointer;
 }
 
-/* Ana Düzen */
+/* Layout */
 .main-layout { display: flex; }
 
 .sidebar {
     width: 240px;
     height: calc(100vh - 56px);
+    background: var(--header-bg);
     padding: 12px;
     position: sticky;
     top: 56px;
@@ -75,80 +78,39 @@ header {
 }
 
 .sidebar li {
+    list-style: none;
     padding: 12px;
     border-radius: 10px;
-    list-style: none;
     cursor: pointer;
     display: flex;
     align-items: center;
     gap: 20px;
-    font-weight: 400;
+    transition: 0.2s;
 }
 
 .sidebar li:hover { background: var(--sidebar-hover); }
 .sidebar li.active { background: var(--sidebar-hover); font-weight: 500; }
 
-/* Video Grid ve Kartlar */
-.content { flex: 1; padding: 24px; }
+/* İçerik Alanı */
+.content { flex: 1; padding: 24px; max-width: 1200px; margin: 0 auto; }
 
+/* Video Grid */
 .video-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
     gap: 20px;
 }
 
-.video-card {
+.v-card {
     background: var(--card-bg);
     border-radius: 12px;
     overflow: hidden;
-    transition: transform 0.2s;
+    transition: transform 0.2s ease;
 }
 
-.video-card:hover { transform: scale(1.02); }
+.v-card:hover { transform: translateY(-5px); }
 
-/* Öne Çıkanlar (Mavi Tikli Olanlar) */
-.video-card.featured {
-    border: 1px solid var(--yt-blue);
-    box-shadow: 0 0 10px rgba(62, 166, 255, 0.1);
-}
-
-/* Onaylı Rozet */
-.verified-badge {
-    color: var(--yt-blue);
-    font-size: 14px;
-    margin-left: 5px;
-}
-
-/* Admin Paneli Stylingi */
-.admin-panel {
-    background: var(--sidebar-hover);
-    border: 1px solid var(--yt-blue);
-    padding: 20px;
-    border-radius: 15px;
-    margin-bottom: 30px;
-}
-
-.admin-section input {
-    width: 90%;
-    padding: 10px;
-    margin: 10px 0;
-    border-radius: 5px;
-    border: 1px solid var(--border-color);
-    background: var(--bg-color);
-    color: var(--text-color);
-}
-
-.publish-btn {
-    background: var(--yt-blue);
-    color: white;
-    border: none;
-    padding: 12px 24px;
-    border-radius: 5px;
-    font-weight: bold;
-    cursor: pointer;
-}
-
-/* Google Butonu */
+/* Butonlar ve Girişler */
 .google-btn {
     padding: 8px 16px;
     border-radius: 20px;
@@ -157,4 +119,35 @@ header {
     color: var(--yt-blue);
     font-weight: 500;
     cursor: pointer;
+}
+
+.google-btn:hover { background: rgba(62, 166, 255, 0.1); border-color: transparent; }
+
+.publish-btn {
+    transition: opacity 0.2s;
+}
+
+.publish-btn:hover { opacity: 0.9; }
+
+/* Admin Paneli Özel Tasarım */
+.admin-panel {
+    background: var(--card-bg);
+    border: 2px solid var(--yt-blue) !important;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+.verified-badge {
+    color: var(--yt-blue);
+    font-weight: bold;
+    font-size: 14px;
+}
+
+input[type="text"] {
+    padding: 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    background: var(--bg-color);
+    color: var(--text-color);
+    width: 100%;
+    box-sizing: border-box;
 }
