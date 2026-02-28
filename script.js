@@ -4,15 +4,17 @@
  */
 
 // 1. FIREBASE BAŞLATMA
+// ======== FIREBASE YAPILANDIRMASI (TARAYICI DOSTU) ========
 const firebaseConfig = {
-    apiKey: "AIzaSyAaDFdyia63SMjnBreMRUQbCPs4foUHFl8",
+    // apiKey buradaki asıl kapı numarasıdır. 
+    // Tarayıcı hatasını engellemek için direkt yazıyoruz.
+    apiKey: "AIzaSyAaDFdyia63SMjnBreMRUQbCPs4foUHFl8", 
     authDomain: "bhminations.firebaseapp.com",
     projectId: "bhminations",
     storageBucket: "bhminations.firebasestorage.app",
     messagingSenderId: "606037209431",
     appId: "1:606037209431:web:a1968ebb1673475deb8e12"
-};
-
+}
 if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.firestore();
