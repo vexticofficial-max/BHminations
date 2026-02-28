@@ -1762,3 +1762,41 @@ function logout() {
         window.location.reload();
     });
 }
+// ======== VIDEO OYNATICI TAMİRİ (SON DOKUNUŞ) ========
+function openVideoModal(video) {
+    console.log("Oynatılacak video verisi:", video); // F12'de bunu kontrol edeceğiz
+
+    if (!video || (!video.youtubeId && !video.url)) {
+        alert("Video verisi eksik! YouTube ID bulunamadı.");
+        return;
+    }
+
+    const modal = document.getElementById('video-modal');
+    const playerContainer = document.getElementById('detail-player-container');
+
+    // YouTube ID'sini ayıkla (Uzun link gelirse diye)
+    let vidId = video.youtubeId || "";
+    if (vidId.includes("v=")) vidId = vidId.split("v=")[1].split("&")[0];
+    if (vidId.includes("youtu.be/")) vidId = vidId.split("youtu.be/")[1].split("?")[0];
+    vidId = vidId.substring(0, 11);
+
+    // Modalı aç
+    modal.style.display = 'flex';
+
+    // Oynatıcıyı oluştur
+    playerContainer.innerHTML = `
+        <iframe width="100%" height="100%" 
+            src="https://www.youtube.com/embed/${vidId}?autoplay=1&rel=0" 
+            frameborder="0" allow="autoplay; encrypted-media" allowfullscreen>
+        </iframe>
+    `;
+
+    // Metinleri güncelle
+    document.getElementById('detail-title').textContent = video.title || "Başlıksız";
+    document.getElementById('detail-views').textContent = `${video.views || 0} izlenme`;
+    
+    // İzlenme artır
+    db.collection('videos').doc(video.id).update({
+        views: firebase.firestore.FieldValue.increment(1)
+    }).catch(e => console.log("İzlenme artırılamadı:", e));
+}
