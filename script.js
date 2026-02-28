@@ -1955,3 +1955,118 @@ function loadVideos() {
 document.addEventListener('DOMContentLoaded', () => {
     setTimeout(loadVideos, 1000); 
 });
+// ======== WATCH PAGE (FULL YOUTUBE) SİSTEMİ ========
+
+// MODALI KAPATMA FONKSİYONU (X tuşu için)
+function closeVideoModal() {
+    const modal = document.getElementById('video-modal');
+    const playerContainer = document.getElementById('detail-player-container');
+    
+    modal.style.display = 'none';
+    playerContainer.innerHTML = ''; // Videoyu durdurmak için içini boşaltıyoruz
+}
+
+// FULL YOUTUBE ARAYÜZÜNÜ OLUŞTURAN ANA FONKSİYON
+function openVideoModal(video) {
+    const modal = document.getElementById('video-modal');
+    const playerContainer = document.getElementById('detail-player-container');
+    
+    if (!modal || !playerContainer) return;
+
+    // Modalı aç
+    modal.style.display = 'flex';
+
+    // YouTube ID'sini temizle
+    let vidId = video.youtubeId || "";
+    if (vidId.includes("v=")) vidId = vidId.split("v=")[1].split("&")[0];
+    vidId = vidId.substring(0, 11);
+
+    // ARAYÜZÜ YENİDEN İNŞA ET (Yorumlar, Sıradaki Videolar, Abone Ol butonu)
+    modal.innerHTML = `
+        <div class="watch-container" style="display: flex; width: 100%; height: 100%; background: #0f0f0f; color: white; overflow-y: auto; position: relative;">
+            
+            <button onclick="closeVideoModal()" style="position: absolute; right: 20px; top: 10px; background: none; border: none; color: white; font-size: 30px; cursor: pointer; z-index: 1000;">&times;</button>
+
+            <div class="main-content" style="flex: 3; padding: 20px;">
+                <div id="detail-player-container" style="width: 100%; aspect-ratio: 16/9; background: black;">
+                    <iframe width="100%" height="100%" src="https://www.youtube.com/embed/${vidId}?autoplay=1" frameborder="0" allowfullscreen></iframe>
+                </div>
+                
+                <h1 style="font-size: 20px; margin: 15px 0;">${video.title}</h1>
+                
+                <div class="video-actions" style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #333; padding-bottom: 15px;">
+                    <div class="user-info" style="display: flex; align-items: center; gap: 10px;">
+                        <img src="${video.authorAvatar || 'https://via.placeholder.com/40'}" style="width: 40px; height: 40px; border-radius: 50%;">
+                        <div>
+                            <p style="font-weight: bold;">${video.authorName}</p>
+                            <p style="font-size: 12px; color: #aaa;">1M Abone</p>
+                        </div>
+                        <button onclick="handleSubscribe('${video.authorId}')" style="background: white; color: black; border: none; padding: 10px 20px; border-radius: 20px; font-weight: bold; cursor: pointer; margin-left: 15px;">Abone Ol</button>
+                    </div>
+                    
+                    <div class="like-dislike" style="display: flex; gap: 10px;">
+                        <button onclick="handleLike('${video.id}')" style="background: #222; color: white; border: none; padding: 8px 15px; border-radius: 20px; cursor: pointer;">👍 Like</button>
+                    </div>
+                </div>
+
+                <div class="comments-section" style="margin-top: 20px;">
+                    <h3>Yorumlar</h3>
+                    <div style="display: flex; gap: 10px; margin: 15px 0;">
+                        <input type="text" placeholder="Yorum ekle..." style="flex: 1; background: none; border: none; border-bottom: 1px solid #333; color: white; padding: 5px;">
+                        <button onclick="checkAuth('Yorum yapmak için giriş yapmalısın!')" style="background: #3ea6ff; border: none; color: black; padding: 5px 15px; border-radius: 5px; cursor: pointer;">Yorum Yap</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="sidebar-content" style="flex: 1; padding: 20px; border-left: 1px solid #333;">
+                <h3 style="font-size: 16px; margin-bottom: 15px;">Sıradaki Videolar</h3>
+                <div id="side-video-list">
+                    </div>
+            </div>
+        </div>
+    `;
+
+    // Yan tarafa videoları diz
+    loadSideVideos();
+}
+
+// GİRİŞ KONTROLÜ (Like, Yorum, Abone için)
+function checkAuth(message) {
+    if (!auth.currentUser) {
+        alert(message);
+        return false;
+    }
+    return true;
+}
+
+function handleLike(videoId) {
+    if(checkAuth("Beğenmek için lütfen giriş yapın!")) {
+        console.log("Beğenildi:", videoId);
+    }
+}
+
+function handleSubscribe(authorId) {
+    if(checkAuth("Abone olmak için lütfen giriş yapın!")) {
+        alert("Başarıyla abone olundu!");
+    }
+}
+
+// YAN TARAFA KÜÇÜK VİDEOLARI DİZEN FONKSİYON
+function loadSideVideos() {
+    const sideList = document.getElementById('side-video-list');
+    db.collection('videos').limit(10).get().then(snapshot => {
+        sideList.innerHTML = '';
+        snapshot.forEach(doc => {
+            const v = doc.data();
+            sideList.innerHTML += `
+                <div onclick="openVideoModal({id: '${doc.id}', ...${JSON.stringify(v)}})" style="display: flex; gap: 10px; margin-bottom: 12px; cursor: pointer;">
+                    <img src="https://img.youtube.com/vi/${v.youtubeId}/mqdefault.jpg" style="width: 120px; border-radius: 8px;">
+                    <div>
+                        <p style="font-size: 13px; font-weight: bold; line-height: 1.2;">${v.title}</p>
+                        <p style="font-size: 11px; color: #aaa; margin-top: 5px;">${v.authorName}</p>
+                    </div>
+                </div>
+            `;
+        });
+    });
+}
