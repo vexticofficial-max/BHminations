@@ -1895,3 +1895,63 @@ function openVideoModal(video) {
     
     document.getElementById('detail-title').innerText = video.title;
 }
+// ======== ANASAYFA VİDEO DİZİCİ VE TAMİRCİ (ALPER ÖZEL) ========
+function loadVideos() {
+    console.log("BHminations: Videolar veritabanından çekiliyor...");
+    const container = document.getElementById('video-grid');
+    if (!container) return;
+
+    db.collection('videos')
+        .orderBy('createdAt', 'desc')
+        .get()
+        .then(snapshot => {
+            container.innerHTML = ''; // Önce temizle
+            
+            if (snapshot.empty) {
+                container.innerHTML = '<p style="padding:20px;">Henüz video yüklenmemiş.</p>';
+                return;
+            }
+
+            snapshot.forEach(doc => {
+                const video = { id: doc.id, ...doc.data() };
+                
+                // Filtre kontrolü (Kategori seçiliyse)
+                if (filter !== 'all' && video.category !== filter) return;
+
+                const card = document.createElement('div');
+                card.className = 'video-card';
+                
+                // TIKLAMA ÖZELLİĞİ: Burası videoyu açan anahtar
+                card.onclick = () => {
+                    console.log("Video açılıyor ID:", video.youtubeId);
+                    openVideoModal(video);
+                };
+
+                // Kartın görsel yapısı
+                card.innerHTML = `
+                    <div class="video-thumbnail">
+                        <img src="https://img.youtube.com/vi/${video.youtubeId}/mqdefault.jpg" alt="${video.title}">
+                    </div>
+                    <div class="video-info-main" style="display:flex; padding:12px; gap:12px;">
+                        <img src="${video.authorAvatar || 'https://via.placeholder.com/36'}" style="width:36px; height:36px; border-radius:50%;">
+                        <div class="video-text">
+                            <h3 style="font-size:14px; margin-bottom:4px; color:var(--text-color);">${video.title}</h3>
+                            <p style="font-size:12px; color:var(--secondary-text);">${video.authorName}</p>
+                            <p style="font-size:12px; color:var(--secondary-text);">${video.views || 0} izlenme</p>
+                        </div>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+            console.log("Videolar başarıyla dizildi.");
+        })
+        .catch(err => {
+            console.error("Videolar dizilirken hata oluştu:", err);
+            container.innerHTML = '<p>Videolar yüklenemedi. Lütfen internetinizi kontrol edin.</p>';
+        });
+}
+
+// Sayfa yüklendiğinde videoları çekmesi için zorla tetikle
+document.addEventListener('DOMContentLoaded', () => {
+    setTimeout(loadVideos, 1000); 
+});
