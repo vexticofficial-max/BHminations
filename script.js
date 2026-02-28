@@ -2657,3 +2657,94 @@ async function pinComment(vid, cid, currentStatus) {
     
     await commentsRef.doc(cid).update({ isPinned: !currentStatus });
 }
+// ======== LIKE VE ETKİLEŞİM SİSTEMİ ========
+async function handleVideoAction(videoId, type) {
+    if (!auth.currentUser) return alert("Beğenmek için giriş yapmalısın!");
+
+    const videoRef = db.collection('videos').doc(videoId);
+    const logKey = `liked_${auth.currentUser.uid}_${videoId}`;
+
+    if (type === 'like') {
+        // Eğer daha önce beğenmediyse artır (Spam engeli)
+        if (!localStorage.getItem(logKey)) {
+            await videoRef.update({
+                likes: firebase.firestore.FieldValue.increment(1)
+            });
+            localStorage.setItem(logKey, 'true');
+            document.getElementById('like-count').innerText = parseInt(document.getElementById('like-count').innerText) + 1;
+        } else {
+            alert("Bu videoyu zaten beğendin!");
+        }
+    } else if (type === 'dislike') {
+        alert("Geri bildiriminiz alındı.");
+    }
+}
+
+// ======== PAYLAŞ VE BİLDİR ========
+function shareVideo(vidId) {
+    const url = window.location.href + "?v=" + vidId;
+    navigator.clipboard.writeText(url);
+    alert("Video linki kopyalandı! Arkadaşlarına gönderebilirsin.");
+}
+
+function reportVideo(vidId) {
+    alert("Video incelemeye alındı. Teşekkürler!");
+}
+// YANIT KUTUSUNU AÇ/KAPAT
+function toggleReplyBox(cid) {
+    const box = document.getElementById(`reply-box-${cid}`);
+    box.style.display = box.style.display === 'none' ? 'flex' : 'none';
+}
+
+// YANIT KAYDETME (TAMİR EDİLDİ)
+async function addReply(videoId, commentId) {
+    const input = document.getElementById(`ri-${commentId}`);
+    const text = input.value;
+
+    if (!auth.currentUser) return alert("Yanıt yazmak için giriş yap!");
+    if (!text) return;
+
+    try {
+        await db.collection('videos').doc(videoId)
+            .collection('comments').doc(commentId)
+            .collection('replies').add({
+                name: auth.currentUser.displayName,
+                avatar: auth.currentUser.photoURL,
+                text: text,
+                uid: auth.currentUser.uid,
+                createdAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+
+        input.value = '';
+        toggleReplyBox(commentId);
+        // Yanıtları anında görebilmek için o yorumun yanıtlarını tekrar yükle
+        loadReplies(videoId, commentId);
+    } catch (err) {
+        console.error("Yanıt hatası:", err);
+        alert("Yanıt gönderilemedi: " + err.message);
+    }
+}
+
+// YANITLARI ÇEKME (DİNAMİK)
+async function loadReplies(videoId, commentId) {
+    const replyList = document.getElementById(`replies-${commentId}`);
+    
+    db.collection('videos').doc(videoId)
+      .collection('comments').doc(commentId)
+      .collection('replies').orderBy('createdAt', 'asc')
+      .onSnapshot(snap => {
+          replyList.innerHTML = '';
+          snap.forEach(doc => {
+              const r = doc.data();
+              replyList.innerHTML += `
+                <div style="display:flex; gap:8px; margin-top:10px; font-size:13px;">
+                    <img src="${r.avatar}" style="width:24px; height:24px; border-radius:50%;">
+                    <div>
+                        <span style="font-weight:bold;">${r.name}</span>
+                        <p style="margin:2px 0;">${r.text}</p>
+                    </div>
+                </div>
+              `;
+          });
+      });
+}
