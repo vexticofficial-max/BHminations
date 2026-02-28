@@ -5,8 +5,9 @@
 
 // ======== FIREBASE YAPILANDIRMASI ========
 const firebaseConfig = {
-    apiKey: "AIzaSyAaDFdyia63SMjnBreMRUQbCPs4foUHFl8",
-    authDomain: "bhminations.firebaseapp.com",
+    const firebaseConfig = {
+    apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+    authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
     projectId: "bhminations",
     storageBucket: "bhminations.firebasestorage.app",
     messagingSenderId: "606037209431",
