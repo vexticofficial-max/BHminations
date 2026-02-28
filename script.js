@@ -2505,4 +2505,155 @@ async function loadWatchNext(currentId) {
         `;
         side.appendChild(item);
     });
+    // ======== VEXTIC MASTER WATCH SYSTEM ========
+
+async function openVideoModal(video) {
+    const modal = document.getElementById('video-modal');
+    if (!modal) return;
+    modal.style.display = 'flex';
+
+    // 1. İZLENME SİSTEMİ (Tekil)
+    const viewKey = `v_${video.id}`;
+    if (!sessionStorage.getItem(viewKey)) {
+        await db.collection('videos').doc(video.id).update({ views: firebase.firestore.FieldValue.increment(1) });
+        sessionStorage.setItem(viewKey, 'true');
+    }
+
+    // 2. VERİLERİ ÇEK
+    const authorDoc = await db.collection('users').doc(video.authorId).get();
+    const isSubbed = auth.currentUser && authorDoc.data()?.subscribers?.includes(auth.currentUser.uid);
+
+    modal.innerHTML = `
+        <div class="watch-container" style="display:flex; width:100%; height:100%; background:#0f0f0f; color:white; overflow-y:auto; position:relative;">
+            <button onclick="closeVideoModal()" style="position:fixed; top:20px; right:30px; background:none; border:none; color:white; font-size:40px; cursor:pointer; z-index:9999;">&times;</button>
+
+            <div style="flex:3; padding:20px; max-width:1200px;">
+                <div style="width:100%; aspect-ratio:16/9; background:#000; border-radius:12px; overflow:hidden;">
+                    <iframe width="100%" height="100%" src="https://www.youtube.com/embed/${video.youtubeId}?autoplay=1" frameborder="0" allowfullscreen></iframe>
+                </div>
+
+                <h1 style="font-size:20px; margin:15px 0;">${video.title}</h1>
+
+                <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #333; padding-bottom:15px; flex-wrap:wrap; gap:10px;">
+                    <div style="display:flex; align-items:center; gap:12px;">
+                        <img src="${video.authorAvatar}" onclick="goToProfile('${video.authorId}')" style="width:40px; height:40px; border-radius:50%; cursor:pointer;">
+                        <div>
+                            <h4 style="margin:0; cursor:pointer;" onclick="goToProfile('${video.authorId}')">${video.authorName}</h4>
+                            <p style="font-size:12px; color:#aaa; margin:0;">${authorDoc.data()?.subscribers?.length || 0} abone</p>
+                        </div>
+                        <button id="sub-btn" onclick="toggleSubscription('${video.authorId}', ${isSubbed})" style="background:${isSubbed ? '#333' : 'white'}; color:${isSubbed ? 'white' : 'black'}; border:none; padding:10px 20px; border-radius:20px; font-weight:bold; cursor:pointer; margin-left:15px;">
+                            ${isSubbed ? 'Abonelikten Çık' : 'Abone Ol'}
+                        </button>
+                    </div>
+
+                    <div style="display:flex; gap:8px; background:#222; border-radius:20px; padding:5px 12px; align-items:center;">
+                        <button onclick="handleVideoAction('${video.id}', 'like')" style="background:none; border:none; color:white; cursor:pointer; display:flex; align-items:center; gap:5px;">👍 <span id="like-count">${video.likes || 0}</span></button>
+                        <div style="width:1px; height:20px; background:#444;"></div>
+                        <button onclick="handleVideoAction('${video.id}', 'dislike')" style="background:none; border:none; color:white; cursor:pointer;">👎</button>
+                        <div style="width:1px; height:20px; background:#444;"></div>
+                        <button onclick="shareVideo('${video.id}')" style="background:none; border:none; color:white; cursor:pointer; font-size:13px;">🔗 Paylaş</button>
+                        <button onclick="reportVideo('${video.id}')" style="background:none; border:none; color:#ff4444; cursor:pointer; font-size:13px;">🚩 Bildir</button>
+                    </div>
+                </div>
+
+                <div style="margin-top:20px;">
+                    <h3 id="c-count-header">Yorumlar</h3>
+                    <div style="display:flex; gap:12px; margin:20px 0;">
+                        <input id="main-comment-input" type="text" placeholder="Yorum ekle..." style="flex:1; background:none; border:none; border-bottom:1px solid #333; color:white; padding:8px; outline:none;">
+                        <button onclick="addVideoComment('${video.id}', '${video.authorId}')" style="background:#3ea6ff; color:#000; border:none; padding:8px 20px; border-radius:18px; font-weight:bold; cursor:pointer;">Yorum Yap</button>
+                    </div>
+                    <div id="comments-container"></div>
+                </div>
+            </div>
+
+            <div id="side-list" style="flex:1; padding:20px; border-left:1px solid #333;">
+                <h3>Sıradaki Videolar</h3>
+            </div>
+        </div>
+    `;
+
+    loadCommentsWithReplies(video.id, video.authorId);
+    loadNextVideosSide(video.id);
+}
+}
+// ======== ABONE OLUNCA BİLDİRİM GİTSİN ========
+async function toggleSubscription(authorId, isSub) {
+    if (!auth.currentUser) return alert("Giriş yap!");
+    const userRef = db.collection('users').doc(authorId);
+    
+    if (isSub) {
+        await userRef.update({ subscribers: firebase.firestore.FieldValue.arrayRemove(auth.currentUser.uid) });
+    } else {
+        await userRef.update({ subscribers: firebase.firestore.FieldValue.arrayUnion(auth.currentUser.uid) });
+        // BİLDİRİM GÖNDER
+        await db.collection('notifications').add({
+            to: authorId,
+            from: auth.currentUser.displayName,
+            type: 'sub',
+            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+    }
+    location.reload();
+}
+
+// ======== YORUM VE YANIT SİSTEMİ (SİLME & SABİTLEME DAHİL) ========
+async function loadCommentsWithReplies(videoId, channelOwnerId) {
+    const container = document.getElementById('comments-container');
+    
+    db.collection('videos').doc(videoId).collection('comments').orderBy('isPinned', 'desc').orderBy('createdAt', 'desc')
+    .onSnapshot(snapshot => {
+        container.innerHTML = '';
+        document.getElementById('c-count-header').innerText = `${snapshot.size} Yorum`;
+
+        snapshot.forEach(doc => {
+            const c = doc.data();
+            const cid = doc.id;
+            const isOwner = auth.currentUser && auth.currentUser.uid === channelOwnerId;
+            const isMyComment = auth.currentUser && auth.currentUser.uid === c.uid;
+
+            const commentDiv = document.createElement('div');
+            commentDiv.style.marginBottom = "25px";
+            commentDiv.innerHTML = `
+                <div style="display:flex; gap:12px;">
+                    <img src="${c.avatar}" style="width:36px; height:36px; border-radius:50%;">
+                    <div style="flex:1;">
+                        <div style="display:flex; align-items:center; gap:8px;">
+                            <span style="font-size:13px; font-weight:bold;">${c.name}</span>
+                            ${c.isPinned ? '<span style="font-size:10px; color:#aaa;">📌 Sabitlendi</span>' : ''}
+                        </div>
+                        <p style="margin:4px 0; font-size:14px;">${c.text}</p>
+                        <div style="display:flex; gap:15px; font-size:12px; color:#aaa;">
+                            <button onclick="toggleReplyBox('${cid}')" style="background:none; border:none; color:inherit; cursor:pointer;">Yanıtla</button>
+                            ${isOwner ? `<button onclick="pinComment('${videoId}', '${cid}', ${c.isPinned})" style="background:none; border:none; color:inherit; cursor:pointer;">${c.isPinned ? 'Sabitlemeyi Kaldır' : 'Sabitle'}</button>` : ''}
+                            ${(isOwner || isMyComment) ? `<button onclick="deleteComment('${videoId}', '${cid}')" style="background:none; border:none; color:#ff4444; cursor:pointer;">Sil</button>` : ''}
+                        </div>
+                        
+                        <div id="reply-box-${cid}" style="display:none; margin-top:10px;">
+                            <input id="ri-${cid}" type="text" placeholder="Yanıt ekle..." style="background:none; border:none; border-bottom:1px solid #444; color:white; width:80%; outline:none;">
+                            <button onclick="addReply('${videoId}', '${cid}')" style="color:#3ea6ff; background:none; border:none; cursor:pointer;">Gönder</button>
+                        </div>
+                        <div id="replies-${cid}" style="margin-left:20px; border-left:1px solid #333; padding-left:10px; margin-top:10px;"></div>
+                    </div>
+                </div>
+            `;
+            container.appendChild(commentDiv);
+            loadReplies(videoId, cid);
+        });
+    });
+}
+
+// ======== YORUM SİLME VE SABİTLEME ========
+async function deleteComment(vid, cid) {
+    if(confirm("Yorumu silmek istediğine emin misin?")) {
+        await db.collection('videos').doc(vid).collection('comments').doc(cid).delete();
+    }
+}
+
+async function pinComment(vid, cid, currentStatus) {
+    const commentsRef = db.collection('videos').doc(vid).collection('comments');
+    // Önce hepsini sabitlemeden çıkar (Sadece 1 tane sabitlenebilir)
+    const pinned = await commentsRef.where('isPinned', '==', true).get();
+    pinned.forEach(d => d.ref.update({ isPinned: false }));
+    
+    await commentsRef.doc(cid).update({ isPinned: !currentStatus });
 }
