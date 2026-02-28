@@ -1800,3 +1800,31 @@ function openVideoModal(video) {
         views: firebase.firestore.FieldValue.increment(1)
     }).catch(e => console.log("İzlenme artırılamadı:", e));
 }
+// ======== ZORLA TIKLAMA ÖZELLİĞİ EKLE ========
+function renderVideos(videos) {
+    const container = document.getElementById('video-grid');
+    if (!container) return;
+    container.innerHTML = '';
+
+    videos.forEach(video => {
+        const card = document.createElement('div');
+        card.className = 'video-card';
+        
+        // Bu satır çok kritik, konsola mutlaka yazı yazmalı
+        card.onclick = () => {
+            console.log("Karta tıklandı! Video verisi:", video); 
+            openVideoModal(video);
+        };
+
+        card.innerHTML = `
+            <div class="video-thumbnail">
+                <img src="https://img.youtube.com/vi/${video.youtubeId}/mqdefault.jpg">
+            </div>
+            <div class="video-info">
+                <h3 class="video-title">${video.title}</h3>
+                <p class="video-meta">${video.authorName} • ${video.views || 0} izlenme</p>
+            </div>
+        `;
+        container.appendChild(card);
+    });
+}
