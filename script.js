@@ -5,17 +5,23 @@
 
 // ======== FIREBASE YAPILANDIRMASI ========
 // ======== FIREBASE YAPILANDIRMASI (GÜVENLİ VE DÜZELTİLMİŞ) ========
+// ======== FIREBASE YAPILANDIRMASI (TAMİR EDİLDİ) ========
 const firebaseConfig = {
-    // Eğer Vercel değişkeni bulamazsa boş kalmasın diye kontrol ekledik
+    // Vercel'deysen process.env'den al, yoksa (local) direkt anahtarı kullan
     apiKey: (typeof process !== 'undefined' && process.env.NEXT_PUBLIC_FIREBASE_API_KEY) 
             ? process.env.NEXT_PUBLIC_FIREBASE_API_KEY 
-            : "AIzaSyAaDFdyia63SMjnBreMRUQbCPs4foUHFl8", 
+            : "AIzaSyAaDFdyia63SMjnBreMRUQbCPs4foUHFl8", // Buraya anahtarını geri koy
     authDomain: "bhminations.firebaseapp.com",
     projectId: "bhminations",
     storageBucket: "bhminations.firebasestorage.app",
     messagingSenderId: "606037209431",
     appId: "1:606037209431:web:a1968ebb1673475deb8e12"
 };
+
+// Başlatma hatasını önlemek için kontrol
+if (!firebase.apps.length) {
+    firebase.initializeApp(firebaseConfig);
+}
 
 firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
@@ -1734,4 +1740,25 @@ function openVideoModal(video) {
     db.collection('videos').doc(video.id).update({
         views: firebase.firestore.FieldValue.increment(1)
     }).catch(err => console.log("İzlenme artırılamadı:", err));
+}
+// ======== GOOGLE LOGIN TAMİRİ ========
+function googleLogin() {
+    console.log("Giriş denemesi başlatıldı...");
+    const provider = new firebase.auth.GoogleAuthProvider();
+    
+    auth.signInWithPopup(provider)
+        .then((result) => {
+            console.log("Giriş başarılı:", result.user.displayName);
+            window.location.reload(); // Sayfayı yenileyerek verileri tazele
+        })
+        .catch((error) => {
+            console.error("Giriş Hatası:", error.code, error.message);
+            alert("Oturum açılamadı: " + error.message);
+        });
+}
+
+function logout() {
+    auth.signOut().then(() => {
+        window.location.reload();
+    });
 }
