@@ -2216,3 +2216,133 @@ async function addComment(videoId) {
     document.getElementById('comment-input').value = '';
     loadComments(videoId);
 }
+// ======== VEXTIC PROFESYONEL İZLEME VE ETKİLEŞİM SİSTEMİ ========
+
+async function openVideoModal(video) {
+    const modal = document.getElementById('video-modal');
+    if (!modal) return;
+
+    modal.style.display = 'flex';
+    
+    // 1. İZLENME SAYACI (Sadece 1 kere artırma - Session Tabanlı)
+    const viewKey = `viewed_${video.id}`;
+    if (!sessionStorage.getItem(viewKey)) {
+        await db.collection('videos').doc(video.id).update({
+            views: firebase.firestore.FieldValue.increment(1)
+        });
+        sessionStorage.setItem(viewKey, 'true'); // Bu sekme açık kaldıkça tekrar saymaz
+    }
+
+    // 2. ABONE VE LİKE VERİLERİNİ ÇEK
+    const authorDoc = await db.collection('users').doc(video.authorId).get();
+    const authorData = authorDoc.data() || { subscribers: [] };
+    const isSubbed = auth.currentUser && authorData.subscribers?.includes(auth.currentUser.uid);
+
+    // 3. ARAYÜZÜ OLUŞTUR (İkonlar ve Yan Panel)
+    modal.innerHTML = `
+        <div class="watch-container" style="display:flex; width:100%; height:100%; background:#0f0f0f; color:white; overflow-y:auto; font-family: Roboto, Arial, sans-serif;">
+            <button onclick="closeVideoModal()" style="position:fixed; top:15px; right:20px; background:none; border:none; color:white; font-size:35px; cursor:pointer; z-index:10001;">&times;</button>
+
+            <div style="flex:3; padding:20px; max-width:1200px;">
+                <div id="player-container" style="width:100%; aspect-ratio:16/9; background:#000; border-radius:12px; overflow:hidden;">
+                    <iframe width="100%" height="100%" src="https://www.youtube.com/embed/${video.youtubeId}?autoplay=1" frameborder="0" allowfullscreen></iframe>
+                </div>
+
+                <h1 style="font-size:20px; margin:15px 0;">${video.title}</h1>
+
+                <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #333; padding-bottom:15px; flex-wrap:wrap;">
+                    <div style="display:flex; align-items:center; gap:12px;">
+                        <img src="${video.authorAvatar}" onclick="goToProfile('${video.authorId}')" style="width:40px; height:40px; border-radius:50%; cursor:pointer;">
+                        <div>
+                            <h4 style="margin:0; cursor:pointer;" onclick="goToProfile('${video.authorId}')">${video.authorName}</h4>
+                            <p style="font-size:12px; color:#aaa; margin:0;">${authorData.subscribers?.length || 0} abone</p>
+                        </div>
+                        <button onclick="handleSubscription('${video.authorId}', ${isSubbed})" 
+                            style="background:${isSubbed ? '#333' : 'white'}; color:${isSubbed ? 'white' : 'black'}; border:none; padding:10px 20px; border-radius:20px; font-weight:bold; cursor:pointer; margin-left:15px;">
+                            ${isSubbed ? 'Abonelikten Çık' : 'Abone Ol'}
+                        </button>
+                    </div>
+
+                    <div style="display:flex; gap:10px;">
+                        <div style="display:flex; background:#222; border-radius:20px; overflow:hidden;">
+                            <button onclick="handleLike('${video.id}')" style="background:none; border:none; color:white; padding:10px 15px; cursor:pointer; border-right:1px solid #444; display:flex; align-items:center; gap:8px;">
+                                <i class="material-icons" style="font-size:20px;">thumb_up</i> <span>${video.likes || 0}</span>
+                            </button>
+                            <button style="background:none; border:none; color:white; padding:10px 15px; cursor:pointer;">
+                                <i class="material-icons" style="font-size:20px;">thumb_down</i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div style="margin-top:20px;">
+                    <h3 id="comment-count-label">Yorumlar</h3>
+                    <div id="comment-form" style="display:flex; gap:15px; margin:20px 0;">
+                        <img src="${auth.currentUser?.photoURL || 'https://via.placeholder.com/40'}" style="width:40px; height:40px; border-radius:50%;">
+                        <div style="flex:1;">
+                            <input id="main-comment-input" type="text" placeholder="Yorum ekleyin..." style="width:100%; background:none; border:none; border-bottom:1px solid #333; color:white; padding:8px 0; outline:none;">
+                            <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:10px;">
+                                <button onclick="postComment('${video.id}')" style="background:#3ea6ff; color:#000; border:none; padding:8px 16px; border-radius:18px; font-weight:bold; cursor:pointer;">Yorum Yap</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="comments-display-list"></div>
+                </div>
+            </div>
+
+            <div style="flex:1; padding:20px; border-left:1px solid #333; min-width:350px;">
+                <h3 style="font-size:16px; margin-bottom:15px;">Sıradaki Videolar</h3>
+                <div id="next-videos-container"></div>
+            </div>
+        </div>
+    `;
+
+    loadComments(video.id);
+    loadNextVideos(video.id);
+}
+// SIRADAKİ VİDEOLARI YÜKLE VE TIKLANABİLİR YAP
+async function loadNextVideos(currentVidId) {
+    const container = document.getElementById('next-videos-container');
+    const snapshot = await db.collection('videos').limit(15).get();
+    
+    container.innerHTML = '';
+    snapshot.forEach(doc => {
+        if (doc.id === currentVidId) return; // Mevcut videoyu listede gösterme
+        const data = doc.data();
+        const v = { id: doc.id, ...data };
+
+        container.innerHTML += `
+            <div onclick='openVideoModal(${JSON.stringify(v)})' style="display:flex; gap:10px; margin-bottom:12px; cursor:pointer;">
+                <img src="https://img.youtube.com/vi/${v.youtubeId}/mqdefault.jpg" style="width:160px; border-radius:8px; object-fit:cover;">
+                <div style="flex:1;">
+                    <h4 style="font-size:14px; margin:0; line-height:1.2; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;">${v.title}</h4>
+                    <p style="font-size:12px; color:#aaa; margin:5px 0 0 0;">${v.authorName}</p>
+                    <p style="font-size:11px; color:#aaa; margin:0;">${v.views || 0} izlenme</p>
+                </div>
+            </div>
+        `;
+    });
+}
+
+// YORUMA YANIT VERME SİSTEMİ
+function showReplyInput(commentId) {
+    if(!auth.currentUser) return alert("Yanıt vermek için giriş yap!");
+    const replyArea = document.getElementById(`reply-area-${commentId}`);
+    replyArea.style.display = replyArea.style.display === 'none' ? 'block' : 'none';
+}
+
+async function postReply(videoId, commentId) {
+    const input = document.getElementById(`reply-input-${commentId}`);
+    if(!input.value) return;
+
+    await db.collection('videos').doc(videoId).collection('comments').doc(commentId).collection('replies').add({
+        text: input.value,
+        userName: auth.currentUser.displayName,
+        userAvatar: auth.currentUser.photoURL,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+
+    input.value = '';
+    alert("Yanıt gönderildi!");
+    loadComments(videoId);
+}
