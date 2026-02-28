@@ -2346,3 +2346,163 @@ async function postReply(videoId, commentId) {
     alert("Yanıt gönderildi!");
     loadComments(videoId);
 }
+// ======== VEXTIC ULTIMATE WATCH SYSTEM (KALICI VERİ) ========
+
+async function openVideoModal(video) {
+    const modal = document.getElementById('video-modal');
+    if (!modal) return;
+    modal.style.display = 'flex';
+
+    // 1. İZLENME SİSTEMİ (Spam Engelli - Oturum Başına 1)
+    const viewKey = `v_${video.id}`;
+    if (!sessionStorage.getItem(viewKey)) {
+        await db.collection('videos').doc(video.id).update({
+            views: firebase.firestore.FieldValue.increment(1)
+        });
+        sessionStorage.setItem(viewKey, 'true');
+    }
+
+    // 2. ABONE DURUMU VE LİKE ÇEK
+    const authorDoc = await db.collection('users').doc(video.authorId).get();
+    const isSubbed = auth.currentUser && authorDoc.data()?.subscribers?.includes(auth.currentUser.uid);
+
+    modal.innerHTML = `
+        <div class="watch-container" style="display:flex; width:100%; height:100%; background:#0f0f0f; color:white; overflow-y:auto;">
+            <button onclick="closeVideoModal()" style="position:fixed; top:20px; right:30px; background:none; border:none; color:white; font-size:40px; cursor:pointer; z-index:9999;">&times;</button>
+
+            <div style="flex:3; padding:20px; max-width:1200px;">
+                <div style="width:100%; aspect-ratio:16/9; background:#000; border-radius:12px; overflow:hidden;">
+                    <iframe width="100%" height="100%" src="https://www.youtube.com/embed/${video.youtubeId}?autoplay=1" frameborder="0" allowfullscreen></iframe>
+                </div>
+
+                <h1 style="font-size:20px; margin:15px 0;">${video.title}</h1>
+
+                <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #333; padding-bottom:15px;">
+                    <div style="display:flex; align-items:center; gap:12px;">
+                        <img src="${video.authorAvatar}" onclick="goToProfile('${video.authorId}')" style="width:40px; height:40px; border-radius:50%; cursor:pointer;">
+                        <div>
+                            <h4 style="margin:0; cursor:pointer;" onclick="goToProfile('${video.authorId}')">${video.authorName}</h4>
+                            <p style="font-size:12px; color:#aaa; margin:0;">${authorDoc.data()?.subscribers?.length || 0} abone</p>
+                        </div>
+                        <button id="sub-btn" onclick="toggleSub('${video.authorId}')" style="background:${isSubbed ? '#333' : 'white'}; color:${isSubbed ? 'white' : 'black'}; border:none; padding:10px 20px; border-radius:20px; font-weight:bold; cursor:pointer; margin-left:15px;">
+                            ${isSubbed ? 'Abonelikten Çık' : 'Abone Ol'}
+                        </button>
+                    </div>
+
+                    <div style="display:flex; gap:10px; background:#222; border-radius:20px; padding:5px 15px;">
+                        <button onclick="handleLike('${video.id}')" style="background:none; border:none; color:white; cursor:pointer;">👍 ${video.likes || 0}</button>
+                        <button style="background:none; border:none; color:white; cursor:pointer; border-left:1px solid #444; padding-left:10px;">👎</button>
+                    </div>
+                </div>
+
+                <div style="margin-top:20px;">
+                    <h3 id="c-count">Yorumlar</h3>
+                    <div style="display:flex; gap:10px; margin-bottom:20px;">
+                        <input id="c-input" type="text" placeholder="Yorum ekle..." style="flex:1; background:none; border:none; border-bottom:1px solid #333; color:white; padding:10px; outline:none;">
+                        <button onclick="saveComment('${video.id}')" style="background:#3ea6ff; border:none; padding:10px 20px; border-radius:20px; cursor:pointer;">Yorum Yap</button>
+                    </div>
+                    <div id="c-list"></div>
+                </div>
+            </div>
+
+            <div id="side-vids" style="flex:1; padding:20px; border-left:1px solid #333;">
+                <h3>Sıradaki Videolar</h3>
+            </div>
+        </div>
+    `;
+
+    loadVideoComments(video.id);
+    loadWatchNext(video.id);
+}
+
+// ======== KALICI YORUM KAYDETME ========
+async function saveComment(videoId) {
+    const text = document.getElementById('c-input').value;
+    if (!auth.currentUser) return alert("Giriş yapmalısın!");
+    if (!text) return;
+
+    await db.collection('videos').doc(videoId).collection('comments').add({
+        uid: auth.currentUser.uid,
+        name: auth.currentUser.displayName,
+        avatar: auth.currentUser.photoURL,
+        text: text,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+
+    document.getElementById('c-input').value = '';
+    loadVideoComments(videoId); // Listeyi tazele
+}
+
+// ======== YORUMLARI VE YANITLARI YÜKLE ========
+async function loadVideoComments(videoId) {
+    const list = document.getElementById('c-list');
+    const snap = await db.collection('videos').doc(videoId).collection('comments').orderBy('createdAt', 'desc').get();
+    
+    document.getElementById('c-count').innerText = `${snap.size} Yorum`;
+    list.innerHTML = '';
+
+    snap.forEach(async doc => {
+        const c = doc.data();
+        const cid = doc.id;
+        const commentDiv = document.createElement('div');
+        commentDiv.style.marginBottom = "20px";
+        commentDiv.innerHTML = `
+            <div style="display:flex; gap:10px;">
+                <img src="${c.avatar}" style="width:35px; height:35px; border-radius:50%;">
+                <div style="flex:1;">
+                    <p style="font-size:13px; font-weight:bold; margin:0;">${c.name}</p>
+                    <p style="margin:5px 0;">${c.text}</p>
+                    <button onclick="showReply('${cid}')" style="background:none; border:none; color:#aaa; font-size:12px; cursor:pointer;">Yanıtla</button>
+                    <div id="reply-box-${cid}" style="display:none; margin-top:10px;">
+                        <input id="ri-${cid}" type="text" placeholder="Yanıtla..." style="background:none; border:none; border-bottom:1px solid #444; color:white; width:70%;">
+                        <button onclick="saveReply('${videoId}', '${cid}')" style="color:#3ea6ff; background:none; border:none; cursor:pointer;">Gönder</button>
+                    </div>
+                    <div id="rl-${cid}" style="margin-top:10px; padding-left:20px; border-left:2px solid #333;"></div>
+                </div>
+            </div>
+        `;
+        list.appendChild(commentDiv);
+        loadReplies(videoId, cid);
+    });
+}
+
+// ======== YANIT SİSTEMİ ========
+function showReply(cid) {
+    const box = document.getElementById(`reply-box-${cid}`);
+    box.style.display = box.style.display === 'none' ? 'block' : 'none';
+}
+
+async function saveReply(vid, cid) {
+    const text = document.getElementById(`ri-${cid}`).value;
+    if (!auth.currentUser || !text) return;
+
+    await db.collection('videos').doc(vid).collection('comments').doc(cid).collection('replies').add({
+        name: auth.currentUser.displayName,
+        text: text,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    alert("Yanıt eklendi!");
+    loadVideoComments(vid);
+}
+
+// ======== SIRADAKİ VİDEOLARI DEĞİŞTİRME ÖZELLİĞİ ========
+async function loadWatchNext(currentId) {
+    const side = document.getElementById('side-vids');
+    const snap = await db.collection('videos').limit(10).get();
+    
+    snap.forEach(doc => {
+        if(doc.id === currentId) return;
+        const v = { id: doc.id, ...doc.data() };
+        const item = document.createElement('div');
+        item.style = "display:flex; gap:10px; margin-bottom:15px; cursor:pointer;";
+        item.onclick = () => openVideoModal(v); // Videoyu anında değiştirir
+        item.innerHTML = `
+            <img src="https://img.youtube.com/vi/${v.youtubeId}/mqdefault.jpg" style="width:120px; border-radius:8px;">
+            <div>
+                <p style="font-size:13px; font-weight:bold; margin:0;">${v.title}</p>
+                <p style="font-size:11px; color:#aaa;">${v.authorName}</p>
+            </div>
+        `;
+        side.appendChild(item);
+    });
+}
