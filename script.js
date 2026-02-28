@@ -1651,3 +1651,84 @@ function openVideoModal(video) {
         console.warn("İzlenme artırılamadı (Normal bir hata olabilir):", err);
     });
 }
+// ==========================================
+// ALPER ÖZEL - ID VE VİDEO OYNATMA TAMİRİ
+// ==========================================
+
+// 1. VİDEO YÜKLERKEN ID'Yİ TEMİZLEYEN FONKSİYON (GİRİŞTE TEMİZLİK)
+async function publishVideoFromLink() {
+    const url = document.getElementById('v-url').value;
+    const title = document.getElementById('v-title').value;
+    const category = document.getElementById('v-category').value;
+    const isShort = document.getElementById('v-shorts-checkbox').checked;
+
+    if (!url || !title) return alert("Lütfen video linki ve başlık girin!");
+
+    // YouTube ID'sini her türlü linkten (kısa/uzun) ayıklayan formül
+    const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+    const match = url.match(regExp);
+    const videoId = (match && match[2].length === 11) ? match[2] : null;
+
+    if (!videoId) {
+        alert("Geçersiz YouTube linki! Lütfen düzgün bir link yapıştır.");
+        return;
+    }
+
+    try {
+        await db.collection('videos').add({
+            title: title,
+            youtubeId: videoId, // Artık sadece 11 haneli temiz kod gidiyor
+            category: category,
+            isShort: isShort,
+            authorId: currentUser.uid,
+            authorName: currentUser.displayName,
+            authorAvatar: currentUser.photoURL,
+            views: 0,
+            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        alert("Video başarıyla yayınlandı!");
+        closeUploadModal();
+        goToPage('home');
+    } catch (error) {
+        console.error("Yükleme hatası:", error);
+        alert("Video yüklenemedi: " + error.message);
+    }
+}
+
+// 2. VİDEOYU OYNATIRKEN ESKİ HATALI LİNKLERİ KURTARAN FONKSİYON (ÇIKIŞTA TEMİZLİK)
+function openVideoModal(video) {
+    if (!video || !video.youtubeId) return;
+    
+    let finalId = video.youtubeId;
+
+    // Eğer veritabanında eski/hatalı uzun bir link kalmışsa onu burada da temizle
+    if (finalId.includes("v=")) {
+        finalId = finalId.split("v=")[1].substring(0, 11);
+    } else if (finalId.includes("youtu.be/")) {
+        finalId = finalId.split("youtu.be/")[1].substring(0, 11);
+    }
+
+    const modal = document.getElementById('video-modal');
+    const playerContainer = document.getElementById('detail-player-container');
+
+    // Modalı göster
+    modal.style.display = 'flex';
+
+    // Iframe'i temiz ID ile oluştur
+    playerContainer.innerHTML = `
+        <iframe width="100%" height="100%" 
+            src="https://www.youtube.com/embed/${finalId}?autoplay=1&rel=0" 
+            frameborder="0" allow="autoplay; encrypted-media" allowfullscreen>
+        </iframe>
+    `;
+
+    // Metin bilgilerini güncelle
+    document.getElementById('detail-title').textContent = video.title || "Başlıksız";
+    document.getElementById('detail-description').textContent = video.description || "Açıklama yok.";
+    document.getElementById('detail-views').textContent = `${video.views || 0} izlenme`;
+    
+    // İzlenme sayısını Firestore'da artır
+    db.collection('videos').doc(video.id).update({
+        views: firebase.firestore.FieldValue.increment(1)
+    }).catch(err => console.log("İzlenme artırılamadı:", err));
+}
