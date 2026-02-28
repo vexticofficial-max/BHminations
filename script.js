@@ -1597,3 +1597,56 @@ function openVideoModal(video) {
         views: firebase.firestore.FieldValue.increment(1)
     }).catch(err => console.error("İzlenme artırılamadı:", err));
 }
+// ======== VİDEO OYNATMA SİSTEMİNİ YENİDEN KUR (ALPER ÖZEL) ========
+function openVideoModal(video) {
+    console.log("Açılmaya çalışılan video objesi:", video);
+
+    if (!video || !video.youtubeId) {
+        console.error("Hata: Video ID'si bulunamadı!");
+        alert("Video yüklenirken bir hata oluştu (ID eksik).");
+        return;
+    }
+
+    const modal = document.getElementById('video-modal');
+    const playerContainer = document.getElementById('detail-player-container');
+
+    if (!modal || !playerContainer) {
+        console.error("Hata: HTML içinde 'video-modal' veya 'detail-player-container' bulunamadı!");
+        return;
+    }
+
+    // 1. Modalı görünür yap
+    modal.style.display = 'flex';
+
+    // 2. YouTube oynatıcısını temizle ve yeniden yükle
+    // Not: autoplay=1 bazen tarayıcılar tarafından engellenir, gerekirse kaldırılabilir.
+    playerContainer.innerHTML = `
+        <iframe 
+            width="100%" 
+            height="100%" 
+            src="https://www.youtube.com/embed/${video.youtubeId}?rel=0&showinfo=0&autoplay=1" 
+            title="YouTube video player" 
+            frameborder="0" 
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" 
+            allowfullscreen>
+        </iframe>
+    `;
+
+    // 3. Metin bilgilerini güncelle (Hata almamak için opsiyonel zincirleme kullanıyoruz)
+    const titleEl = document.getElementById('detail-title');
+    const descEl = document.getElementById('detail-description');
+    const viewsEl = document.getElementById('detail-views');
+
+    if (titleEl) titleEl.textContent = video.title || "Başlıksız Video";
+    if (descEl) descEl.textContent = video.description || "Açıklama bulunmuyor.";
+    if (viewsEl) viewsEl.textContent = `${video.views || 0} izlenme`;
+
+    // 4. İzlenmeyi veritabanında artır
+    db.collection('videos').doc(video.id).update({
+        views: firebase.firestore.FieldValue.increment(1)
+    }).then(() => {
+        console.log("İzlenme başarıyla artırıldı.");
+    }).catch(err => {
+        console.warn("İzlenme artırılamadı (Normal bir hata olabilir):", err);
+    });
+}
