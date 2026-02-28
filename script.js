@@ -1542,3 +1542,28 @@ document.addEventListener('DOMContentLoaded', () => {
     // İlk yükleme
     loadVideos();
 });
+// Bu fonksiyonu bul ve içindeki 'card.onclick' satırına dikkat et
+function renderVideos(videos) {
+    const container = document.getElementById('video-grid');
+    if (!container) return;
+    container.innerHTML = '';
+
+    videos.forEach(video => {
+        const card = document.createElement('div');
+        card.className = 'video-card';
+        
+        // BURASI EKSİK VEYA HATALI: Videoya basınca modal açılmalı
+        card.onclick = () => openVideoModal(video); 
+
+        card.innerHTML = `
+            <div class="video-thumbnail">
+                <img src="https://img.youtube.com/vi/${video.youtubeId}/mqdefault.jpg">
+            </div>
+            <div class="video-info">
+                <h3 class="video-title">${video.title}</h3>
+                <p class="video-meta">${video.authorName} • ${video.views || 0} izlenme</p>
+            </div>
+        `;
+        container.appendChild(card);
+    });
+}
