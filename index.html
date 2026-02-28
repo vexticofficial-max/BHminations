@@ -6,211 +6,413 @@
     <title>BHminations - Animasyon Platformu</title>
     
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
-
-    <style>
-        /* PROFESYONEL GUI AYARLARI */
-        :root {
-            --bg: #f9f9f9; --txt: #0f0f0f; --card: #ffffff;
-            --border: #e5e5e5; --blue: #065fd4; --red: #ff0000;
-        }
-
-        .dark-mode {
-            --bg: #0f0f0f; --txt: #ffffff; --card: #1e1e1e;
-            --border: #3f3f3f; --blue: #3ea6ff;
-        }
-
-        body {
-            margin: 0; font-family: 'Roboto', sans-serif;
-            background-color: var(--bg); color: var(--txt); transition: 0.3s;
-        }
-
-        header {
-            display: flex; justify-content: space-between; align-items: center;
-            padding: 8px 16px; background: var(--card);
-            border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 1000;
-        }
-
-        .logo { font-size: 20px; font-weight: bold; color: var(--red); cursor: pointer; }
-
-        .layout { display: flex; }
-
-        .sidebar {
-            width: 240px; height: 100vh; padding: 12px;
-            background: var(--card); border-right: 1px solid var(--border);
-        }
-
-        .sidebar li {
-            list-style: none; padding: 12px; border-radius: 10px;
-            cursor: pointer; margin-bottom: 5px; display: flex; align-items: center; gap: 15px;
-        }
-
-        .sidebar li:hover { background: rgba(0,0,0,0.05); }
-        .dark-mode .sidebar li:hover { background: rgba(255,255,255,0.1); }
-
-        .content { flex: 1; padding: 24px; }
-
-        .video-grid {
-            display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px;
-        }
-
-        /* YÜKLEME VE YÖNETİM ALANI */
-        .box {
-            background: var(--card); border: 1px solid var(--border);
-            padding: 20px; border-radius: 12px; margin-bottom: 25px;
-        }
-
-        input {
-            width: 100%; padding: 12px; margin: 10px 0;
-            border: 1px solid var(--border); border-radius: 6px;
-            background: var(--bg); color: var(--txt); box-sizing: border-box;
-        }
-
-        .btn {
-            background: var(--blue); color: white; border: none;
-            padding: 12px; border-radius: 6px; cursor: pointer; font-weight: bold; width: 100%;
-        }
-
-        .v-card { background: var(--card); border-radius: 12px; overflow: hidden; border: 1px solid var(--border); }
-        .verified-badge { color: var(--blue); margin-left: 5px; font-weight: bold; }
-    </style>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-storage-compat.js"></script>
+    <link rel="stylesheet" href="style.css">
 </head>
-<body class="light-mode">
+<body>
 
-    <header>
-        <div class="logo">BHminations</div>
-        <div style="display: flex; gap: 15px; align-items: center;">
-            <button onclick="toggleTheme()" style="background:none; border:none; font-size:20px; cursor:pointer;">🌙</button>
-            <button id="login-btn" onclick="googleLogin()" style="background:var(--blue); color:white; border:none; padding:8px 16px; border-radius:20px; cursor:pointer;">Oturum aç</button>
-            <div id="user-info" style="display:none; align-items:center; gap: 10px;">
-                <img id="u-img" style="width:32px; height:32px; border-radius:50%;">
-                <span id="u-name" style="font-weight: 500;"></span>
-                <span id="u-verified" class="verified-badge" style="display:none;">✔</span>
+    <!-- HEADER/NAVBAR -->
+    <header class="header">
+        <div class="header-left">
+            <button class="menu-toggle" onclick="toggleSidebar()">
+                <i class="fas fa-bars"></i>
+            </button>
+            <div class="logo" onclick="goToPage('home')">
+                <i class="fas fa-play-circle"></i> BHminations
+            </div>
+        </div>
+
+        <div class="search-container">
+            <input type="text" class="search-bar" placeholder="Ara..." id="search-input">
+            <button class="search-btn" onclick="searchVideos()">
+                <i class="fas fa-search"></i>
+            </button>
+        </div>
+
+        <div class="header-right">
+            <button class="header-icon" onclick="toggleTheme()" title="Tema">
+                <i class="fas fa-moon"></i>
+            </button>
+            <button class="header-icon" id="upload-mobile-btn" onclick="openUploadModal()" style="display:none;" title="Yükle">
+                <i class="fas fa-film"></i>
+            </button>
+            <button class="header-icon" id="notifications-btn" onclick="showNotifications()" style="display:none;" title="Bildirimler">
+                <i class="fas fa-bell"></i>
+            </button>
+            
+            <button id="login-btn" class="btn-login" onclick="googleLogin()">
+                <i class="fas fa-sign-in-alt"></i> Oturum Aç
+            </button>
+            
+            <div id="user-menu" class="user-menu" style="display:none;">
+                <img id="u-img" class="user-avatar" alt="Avatar">
+                <div class="dropdown-menu" id="dropdown-menu">
+                    <div class="menu-header" id="u-name"></div>
+                    <a onclick="goToPage('mychannel')"><i class="fas fa-user-circle"></i> Kanalım</a>
+                    <a onclick="goToPage('subscribers')"><i class="fas fa-users"></i> Abonelerim</a>
+                    <a onclick="goToPage('subscriptions')"><i class="fas fa-tv"></i> Abonelikleri</a>
+                    <a onclick="goToPage('settings')"><i class="fas fa-cog"></i> Profil Ayarları</a>
+                    <a onclick="goToPage('liked')"><i class="fas fa-heart"></i> Beğenilenler</a>
+                    <hr style="margin:5px 0; border:none; border-top:1px solid var(--border-color);">
+                    <a id="admin-menu-item" style="display:none;" onclick="goToPage('admin')"><i class="fas fa-crown"></i> Kurucu Paneli</a>
+                    <hr id="admin-sep" style="display:none; margin:5px 0; border:none; border-top:1px solid var(--border-color);">
+                    <a onclick="logout()"><i class="fas fa-sign-out-alt"></i> Çıkış Yap</a>
+                </div>
             </div>
         </div>
     </header>
 
-    <div class="layout">
-        <nav class="sidebar">
-            <li class="active">🏠 Anasayfa</li>
-            <li>🔥 Trendler</li>
-            <div id="admin-menu" style="display:none; border-top: 1px solid var(--border); margin-top: 15px; padding-top: 10px;">
-                <li onclick="togglePanel('admin-panel')" style="color: var(--blue); font-weight: bold;">🛠️ Kurucu Paneli</li>
+    <!-- SIDEBAR -->
+    <div class="sidebar-container">
+        <nav class="sidebar" id="sidebar">
+            <div class="sidebar-section">
+                <a href="#" class="sidebar-item active" onclick="event.preventDefault(); goToPage('home')">
+                    <i class="fas fa-home"></i> <span>Anasayfa</span>
+                </a>
+                <a href="#" class="sidebar-item" onclick="event.preventDefault(); goToPage('shorts')">
+                    <i class="fas fa-video"></i> <span>Shorts</span>
+                </a>
+                <a href="#" class="sidebar-item" onclick="event.preventDefault(); goToPage('trends')">
+                    <i class="fas fa-fire"></i> <span>Trendler</span>
+                </a>
+                <a href="#" class="sidebar-item" onclick="event.preventDefault(); goToPage('liked')">
+                    <i class="fas fa-heart"></i> <span>Beğenilenler</span>
+                </a>
+            </div>
+
+            <div class="sidebar-section" id="subscriptions-section" style="display:none;">
+                <h3 class="sidebar-title">ABONELIKLERI</h3>
+                <div id="subscriptions-list"></div>
             </div>
         </nav>
-
-        <main class="content">
-            <div id="upload-box" class="box" style="display:none;">
-                <h3 style="margin-top:0;">🎥 Animasyon Paylaş</h3>
-                <input type="text" id="v-title" placeholder="Başlık Yaz...">
-                <input type="text" id="v-url" placeholder="YouTube Video Linki...">
-                <button onclick="publishVideo()" class="btn">HERKESE YAYINLA</button>
-            </div>
-
-            <div id="admin-panel" class="box" style="display:none; border: 2px solid var(--blue);">
-                <h3 style="margin-top:0;">🛡️ Kurucu Yönetim Merkezi</h3>
-                <p style="font-size: 13px; color: gray;">Buradan ihtar atabilir, banlayabilir veya onay verebilirsin.</p>
-                <input type="text" id="target-mail" placeholder="Kullanıcı E-postası...">
-                <div style="display: flex; gap: 10px;">
-                    <button onclick="adminAction('verify')" style="flex:1; background:#2ba640;" class="btn">Onayla (Mavi Tik)</button>
-                    <button onclick="adminAction('ban')" style="flex:1; background:#cc0000;" class="btn">İhtar At / Banla</button>
-                </div>
-            </div>
-
-            <h2>Önerilen Videolar</h2>
-            <div id="video-grid" class="video-grid">
-                </div>
-        </main>
     </div>
 
-    <script>
-        // FIREBASE KURULUMU
-        const firebaseConfig = {
-            apiKey: "AIzaSyAaDFdyia63SMjnBreMRUQbCPs4foUHFl8",
-            authDomain: "bhminations.firebaseapp.com",
-            projectId: "bhminations",
-            storageBucket: "bhminations.firebasestorage.app",
-            messagingSenderId: "606037209431",
-            appId: "1:606037209431:web:a1968ebb1673475deb8e12"
-        };
-        firebase.initializeApp(firebaseConfig);
-        const auth = firebase.auth();
-        const db = firebase.firestore();
-        const provider = new firebase.auth.GoogleAuthProvider();
+    <!-- MAIN CONTENT -->
+    <main class="main-content">
+        
+        <!-- ANA SAYFA -->
+        <section id="home-page" class="page-section">
+            <div class="categories-bar">
+                <button class="category-btn active" onclick="filterCategory('all')">Tümü</button>
+                <button class="category-btn" onclick="filterCategory('music')">Müzik</button>
+                <button class="category-btn" onclick="filterCategory('animation')">Animasyon</button>
+                <button class="category-btn" onclick="filterCategory('gaming')">Oyun</button>
+                <button class="category-btn" onclick="filterCategory('tutorial')">Eğitim</button>
+            </div>
+            <div id="video-grid" class="video-grid"></div>
+        </section>
 
-        // TEMA FONKSİYONU
-        function toggleTheme() {
-            document.body.classList.toggle('dark-mode');
-        }
-
-        // GİRİŞ İŞLEMİ
-        function googleLogin() {
-            auth.signInWithPopup(provider).catch(e => alert(e.message));
-        }
-
-        auth.onAuthStateChanged(user => {
-            if (user) {
-                document.getElementById('login-btn').style.display = 'none';
-                document.getElementById('user-info').style.display = 'flex';
-                document.getElementById('upload-box').style.display = 'block';
-                document.getElementById('u-img').src = user.photoURL;
-                document.getElementById('u-name').innerText = user.displayName;
-
-                // ALPER KONTROLÜ
-                if (user.email === "bluehairkomsi@gmail.com") {
-                    document.getElementById('admin-menu').style.display = 'block';
-                    document.getElementById('u-verified').style.display = 'inline';
-                }
-                loadVideos();
-            }
-        });
-
-        // VİDEO YAYINLAMA
-        async function publishVideo() {
-            const t = document.getElementById('v-title').value;
-            const u = document.getElementById('v-url').value;
-            if(!t || !u) return alert("Alanları doldur Alper!");
-
-            let id = u.split('v=')[1] || u.split('/').pop();
-            if(id.includes('&')) id = id.split('&')[0];
-
-            await db.collection("videos").add({
-                title: t, videoId: id, 
-                author: auth.currentUser.displayName,
-                authorEmail: auth.currentUser.email,
-                isVerified: (auth.currentUser.email === "bluehairkomsi@gmail.com"),
-                time: firebase.firestore.FieldValue.serverTimestamp()
-            });
-            alert("Video yüklendi! 🚀");
-            location.reload();
-        }
-
-        // VİDEOLARI ÇEKME
-        function loadVideos() {
-            const grid = document.getElementById('video-grid');
-            db.collection("videos").orderBy("time", "desc").onSnapshot(snap => {
-                grid.innerHTML = '';
-                snap.forEach(doc => {
-                    const d = doc.data();
-                    const card = document.createElement('div');
-                    card.className = 'v-card';
-                    card.innerHTML = `
-                        <iframe width="100%" height="180" src="https://www.youtube.com/embed/${d.videoId}" frameborder="0" allowfullscreen></iframe>
-                        <div style="padding:12px;">
-                            <h4 style="margin:0;">${d.title} ${d.isVerified ? '<span class="verified-badge">✔</span>' : ''}</h4>
-                            <p style="font-size:12px; color:gray; margin-top:5px;">${d.author}</p>
-                            ${auth.currentUser.email === "bluehairkomsi@gmail.com" ? `<button onclick="deleteV('${doc.id}')" style="color:red; background:none; border:none; cursor:pointer; font-size:11px; padding:0;">VİDEOYU SİL</button>` : ''}
+        <!-- SHORTS SAYFASI -->
+        <section id="shorts-page" class="page-section" style="display:none;">
+            <div class="shorts-container">
+                <div id="shorts-viewer" class="shorts-viewer">
+                    <div class="shorts-video">
+                        <iframe id="shorts-iframe" width="100%" height="100%" frameborder="0" allowfullscreen></iframe>
+                    </div>
+                    <div class="shorts-actions">
+                        <button class="shorts-action-btn" onclick="likeShort()">
+                            <i class="fas fa-heart"></i>
+                            <span id="short-likes">0</span>
+                        </button>
+                        <button class="shorts-action-btn" onclick="dislikeShort()">
+                            <i class="fas fa-thumbs-down"></i>
+                        </button>
+                        <button class="shorts-action-btn" onclick="shareShort()">
+                            <i class="fas fa-share"></i>
+                        </button>
+                    </div>
+                    <div class="shorts-nav">
+                        <button class="shorts-nav-btn" onclick="prevShort()">
+                            <i class="fas fa-chevron-up"></i>
+                        </button>
+                        <button class="shorts-nav-btn" onclick="nextShort()">
+                            <i class="fas fa-chevron-down"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="shorts-info">
+                    <div class="shorts-channel">
+                        <img id="shorts-avatar" class="small-avatar">
+                        <div>
+                            <div id="shorts-author" class="font-bold"></div>
+                            <button class="btn-subscribe-small" onclick="toggleSubscribe()">Abone Ol</button>
                         </div>
-                    `;
-                    grid.appendChild(card);
-                });
-            });
-        }
+                    </div>
+                    <h3 id="shorts-title"></h3>
+                    <p id="shorts-description"></p>
+                </div>
+            </div>
+        </section>
 
-        function deleteV(id) { if(confirm("Silinsin mi?")) db.collection("videos").doc(id).delete(); }
-        function togglePanel(id) { const p = document.getElementById(id); p.style.display = p.style.display === 'none' ? 'block' : 'none'; }
-    </script>
+        <!-- TRENDLEMLERİ SAYFASI -->
+        <section id="trends-page" class="page-section" style="display:none;">
+            <div class="trends-header">
+                <h1><i class="fas fa-fire"></i> Trendler</h1>
+                <p>En çok izlenen ve beğenilen videolar</p>
+            </div>
+            <div id="trends-grid" class="trends-grid"></div>
+        </section>
+
+        <!-- BEĞENİLENLER SAYFASI -->
+        <section id="liked-page" class="page-section" style="display:none;">
+            <h1>Beğendiğim Videolar</h1>
+            <div id="liked-grid" class="video-grid"></div>
+        </section>
+
+        <!-- KANAL SAYFASI -->
+        <section id="mychannel-page" class="page-section" style="display:none;">
+            <div class="channel-header">
+                <div class="channel-cover"></div>
+                <div class="channel-info">
+                    <img id="channel-avatar" class="channel-avatar">
+                    <div>
+                        <h1 id="channel-name"></h1>
+                        <p id="channel-subscribers">0 abone</p>
+                        <p id="channel-bio-text" style="margin-top:8px; color:var(--secondary-text); max-width:500px;"></p>
+                    </div>
+                    <button id="edit-channel-btn" class="btn-primary" onclick="goToPage('settings')" style="display:none;">
+                        Profil Ayarları
+                    </button>
+                </div>
+                <div style="display:flex; gap:12px; margin-top:20px;">
+                    <button class="btn-primary" onclick="goToPage('subscribers')" style="display:none;" id="my-subscribers-btn">
+                        <i class="fas fa-users"></i> Abonelerim Gör
+                    </button>
+                    <button class="btn-primary" onclick="goToPage('subscriptions')" style="display:none;" id="my-subscriptions-btn">
+                        <i class="fas fa-tv"></i> Abonelikleri Gör
+                    </button>
+                </div>
+            </div>
+            <div class="channel-tabs">
+                <button class="tab-btn active" onclick="switchChannelTab('videos')">Videolar</button>
+                <button class="tab-btn" onclick="switchChannelTab('playlists')">Çalma Listeleri</button>
+            </div>
+            <div id="channel-content">
+                <div id="channel-videos" class="video-grid"></div>
+            </div>
+        </section>
+
+        <!-- KURUCU PANELİ -->
+        <section id="admin-page" class="page-section" style="display:none;">
+            <div class="admin-panel">
+                <h1>🛡️ Kurucu Yönetim Merkezi</h1>
+                
+                <div class="admin-section">
+                    <h2>Kullanıcı Yönet</h2>
+                    <div class="admin-form">
+                        <input type="text" id="admin-target-email" placeholder="Kullanıcı E-postası..." class="form-input">
+                        <div class="admin-buttons">
+                            <button class="btn-success" onclick="adminVerify()">Mavi Tik Ver</button>
+                            <button class="btn-danger" onclick="adminBan()">Banla</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="admin-section">
+                    <h2>İçerik Yönet</h2>
+                    <div id="admin-videos-list"></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- PROFIL AYARLARI SAYFASI -->
+        <section id="settings-page" class="page-section" style="display:none;">
+            <div class="settings-container">
+                <h1>⚙️ Profil Ayarları</h1>
+                
+                <div class="settings-card">
+                    <h2>Kanal Başlığı</h2>
+                    <div class="banner-editor">
+                        <div id="channel-banner" class="channel-banner-preview" onclick="document.getElementById('banner-input').click()" style="cursor:pointer;">
+                            <span>Başlık Fotoğrafını Yükle</span>
+                        </div>
+                        <input type="file" id="banner-input" accept="image/*" style="display:none;" onchange="changeBanner()">
+                    </div>
+                </div>
+
+                <div class="settings-card">
+                    <h2>Profil Resmi</h2>
+                    <div style="display:flex; align-items:center; gap:20px;">
+                        <img id="settings-avatar" class="settings-avatar">
+                        <button class="btn-primary" onclick="document.getElementById('avatar-input').click()">Değiştir</button>
+                        <input type="file" id="avatar-input" accept="image/*" style="display:none;" onchange="changeAvatar()">
+                    </div>
+                </div>
+
+                <div class="settings-card">
+                    <h2>Kanal Bilgileri</h2>
+                    <div class="form-group">
+                        <label>Kanal Adı</label>
+                        <input type="text" id="channel-display-name" class="form-input" placeholder="Kanal adın...">
+                    </div>
+                    <div class="form-group">
+                        <label>Kanal Açıklaması</label>
+                        <textarea id="channel-bio" class="form-input" placeholder="Kanalın hakkında yazı..." style="min-height:100px;"></textarea>
+                    </div>
+                </div>
+
+                <div class="settings-card">
+                    <h2>Sosyal Medya</h2>
+                    <div class="form-group">
+                        <label>YouTube Kanalı (URL)</label>
+                        <input type="url" id="social-youtube" class="form-input" placeholder="YouTube profil linki...">
+                    </div>
+                    <div class="form-group">
+                        <label>İnstagram</label>
+                        <input type="text" id="social-instagram" class="form-input" placeholder="@kullanıcıadı">
+                    </div>
+                    <div class="form-group">
+                        <label>Web Sitesi</label>
+                        <input type="url" id="social-website" class="form-input" placeholder="https://example.com">
+                    </div>
+                </div>
+
+                <div class="settings-actions">
+                    <button class="btn-primary" onclick="saveProfileSettings()">Değişiklikleri Kaydet</button>
+                    <button style="padding:12px 20px; border:1px solid var(--border-color); background:none; cursor:pointer; border-radius:4px;" onclick="goToPage('mychannel')">İptal</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- ABONELERİM SAYFASI -->
+        <section id="subscribers-page" class="page-section" style="display:none;">
+            <div class="subscribers-container">
+                <h1>👥 Abonelerim</h1>
+                <p id="subscriber-count-text" style="color:var(--secondary-text); margin-bottom:20px;">0 abone</p>
+                <div id="subscribers-list" class="subscribers-list"></div>
+            </div>
+        </section>
+
+        <!-- ABONELİK SAYFASI -->
+        <section id="subscriptions-page" class="page-section" style="display:none;">
+            <div class="subscriptions-container">
+                <h1>📺 Abonelikleri</h1>
+                <p style="color:var(--secondary-text); margin-bottom:20px;">Abone olduğun kanallar</p>
+                <div id="subscriptions-videos-list" class="video-grid"></div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- VIDEO DETAY MODAL -->
+    <div id="video-modal" class="modal" onclick="if(event.target===this) closeVideoModal()">
+        <div class="modal-content modal-video">
+            <button class="modal-close" onclick="closeVideoModal()">✕</button>
+            <div class="video-detail-container">
+                <div class="video-player-section">
+                    <iframe id="detail-player" width="100%" height="100%" frameborder="0" allowfullscreen></iframe>
+                </div>
+                <div class="video-info-section">
+                    <h1 id="detail-title"></h1>
+                    <div class="video-meta">
+                        <span id="detail-views">0 izlenme</span>
+                        <span id="detail-date"></span>
+                    </div>
+
+                    <div class="channel-section">
+                        <img id="detail-avatar" class="small-avatar">
+                        <div>
+                            <div id="detail-author" class="font-bold"></div>
+                            <button id="detail-subscribe-btn" class="btn-subscribe" onclick="toggleDetailSubscribe()">Abone Ol</button>
+                        </div>
+                    </div>
+
+                    <div class="interaction-buttons">
+                        <button class="btn-action" onclick="likeVideo()">
+                            <i class="fas fa-thumbs-up"></i>
+                            <span id="like-count">0</span>
+                        </button>
+                        <button class="btn-action" onclick="dislikeVideo()">
+                            <i class="fas fa-thumbs-down"></i>
+                        </button>
+                        <button class="btn-action" onclick="shareVideo()">
+                            <i class="fas fa-share"></i> Paylaş
+                        </button>
+                        <button class="btn-action" onclick="saveToPlaylist()">
+                            <i class="fas fa-list"></i> Kaydet
+                        </button>
+                    </div>
+
+                    <div class="description-section">
+                        <p id="detail-description"></p>
+                    </div>
+
+                    <!-- YORUM BÖLÜMÜ -->
+                    <div class="comments-section">
+                        <h3>Yorumlar</h3>
+                        <div id="comment-input-area"></div>
+                        <div id="comments-list" class="comments-list"></div>
+                    </div>
+                </div>
+
+                <!-- SIRAKIN VIDEOLARI -->
+                <div class="sidebar-videos">
+                    <h3>Sıradaki</h3>
+                    <div id="next-videos-list"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- YÜKLEME MODAL -->
+    <div id="upload-modal" class="modal" onclick="if(event.target===this) closeUploadModal()">
+        <div class="modal-content modal-upload">
+            <button class="modal-close" onclick="closeUploadModal()">✕</button>
+            <h2>Video Yükle</h2>
+            
+            <div class="upload-tabs">
+                <button class="tab-btn active" onclick="switchUploadTab('link')">YouTube Linki</button>
+                <button class="tab-btn" onclick="switchUploadTab('file')">Dosya Yükle</button>
+            </div>
+
+            <!-- YOUTUBE LINKI SEKMESI -->
+            <div id="link-tab" class="upload-tab active">
+                <input type="text" id="v-url" placeholder="YouTube Video Linki..." class="form-input">
+                <input type="text" id="v-title" placeholder="Başlık..." class="form-input">
+                <textarea id="v-description" placeholder="Açıklama..."></textarea>
+                <select id="v-category" class="form-input">
+                    <option value="">Kategori Seç</option>
+                    <option value="music">Müzik</option>
+                    <option value="animation">Animasyon</option>
+                    <option value="gaming">Oyun</option>
+                    <option value="tutorial">Eğitim</option>
+                </select>
+                <button class="btn-primary" onclick="publishVideoFromLink()">YAYINLA</button>
+            </div>
+
+            <!-- DOSYA YÜKLEME SEKMESI -->
+            <div id="file-tab" class="upload-tab" style="display:none;">
+                <div class="file-upload-area" onclick="document.getElementById('file-input').click()">
+                    <i class="fas fa-cloud-upload-alt"></i>
+                    <p>Dosyayı sürükle veya tıkla</p>
+                    <small>MP4, MOV - Max 2GB</small>
+                </div>
+                <input type="file" id="file-input" accept="video/*" style="display:none;" onchange="handleFileSelect()">
+                <div id="file-info" style="display:none;">
+                    <p id="file-name"></p>
+                    <div class="progress-bar">
+                        <div id="upload-progress" class="progress-fill"></div>
+                    </div>
+                </div>
+                <input type="text" id="file-title" placeholder="Başlık..." class="form-input">
+                <textarea id="file-description" placeholder="Açıklama..."></textarea>
+                <input type="text" id="file-thumbnail" placeholder="Kapak Fotoğrafı URL (İsteğe Bağlı)">
+                <select id="file-category" class="form-input">
+                    <option value="">Kategori Seç</option>
+                    <option value="music">Müzik</option>
+                    <option value="animation">Animasyon</option>
+                    <option value="gaming">Oyun</option>
+                    <option value="tutorial">Eğitim</option>
+                </select>
+                <button class="btn-primary" id="publish-file-btn" onclick="publishVideoFromFile()" style="display:none;">YAYINLA</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
 </body>
 </html>
