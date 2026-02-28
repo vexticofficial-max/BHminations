@@ -103,6 +103,7 @@
                 <button class="category-btn" onclick="filterCategory('gaming')">Oyun</button>
                 <button class="category-btn" onclick="filterCategory('tutorial')">Eğitim</button>
             </div>
+            <div id="channel-results" class="subscribers-list" style="margin-bottom:20px;"></div>
             <div id="video-grid" class="video-grid"></div>
         </section>
 
@@ -148,7 +149,7 @@
             </div>
         </section>
 
-        <!-- TRENDLEMLERİ SAYFASI -->
+        <!-- TRENDLERİ SAYFASI -->
         <section id="trends-page" class="page-section" style="display:none;">
             <div class="trends-header">
                 <h1><i class="fas fa-fire"></i> Trendler</h1>
@@ -156,7 +157,11 @@
             </div>
             <div id="trends-grid" class="trends-grid"></div>
         </section>
-
+        <!-- BİLDİRİMLER SAYFASI -->
+        <section id="notifications-page" class="page-section" style="display:none;">
+            <h2>Bildirimler</h2>
+            <div id="notifications-list" class="notifications-list"></div>
+        </section>
         <!-- BEĞENİLENLER SAYFASI -->
         <section id="liked-page" class="page-section" style="display:none;">
             <h1>Beğendiğim Videolar</h1>
@@ -174,9 +179,12 @@
                         <p id="channel-subscribers">0 abone</p>
                         <p id="channel-bio-text" style="margin-top:8px; color:var(--secondary-text); max-width:500px;"></p>
                     </div>
-                    <button id="edit-channel-btn" class="btn-primary" onclick="goToPage('settings')" style="display:none;">
-                        Profil Ayarları
-                    </button>
+                    <div style="display:flex; gap:12px; align-items:center;">
+                        <button id="channel-subscribe-btn" class="btn-primary" style="display:none;" onclick="toggleChannelSubscribe()">Abone Ol</button>
+                        <button id="edit-channel-btn" class="btn-primary" onclick="goToPage('settings')" style="display:none;">
+                            Profil Ayarları
+                        </button>
+                    </div>
                 </div>
                 <div style="display:flex; gap:12px; margin-top:20px;">
                     <button class="btn-primary" onclick="goToPage('subscribers')" style="display:none;" id="my-subscribers-btn">
@@ -381,6 +389,9 @@
                     <option value="gaming">Oyun</option>
                     <option value="tutorial">Eğitim</option>
                 </select>
+                <div style="margin:8px 0;">
+                    <label><input type="checkbox" id="v-shorts-checkbox"> Shorts olarak işaretle</label>
+                </div>
                 <button class="btn-primary" onclick="publishVideoFromLink()">YAYINLA</button>
             </div>
 
@@ -408,6 +419,9 @@
                     <option value="gaming">Oyun</option>
                     <option value="tutorial">Eğitim</option>
                 </select>
+                <div style="margin:8px 0;">
+                    <label><input type="checkbox" id="file-shorts-checkbox"> Shorts olarak işaretle</label>
+                </div>
                 <button class="btn-primary" id="publish-file-btn" onclick="publishVideoFromFile()" style="display:none;">YAYINLA</button>
             </div>
         </div>
