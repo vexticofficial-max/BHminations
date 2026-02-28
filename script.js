@@ -233,7 +233,9 @@ async function publishVideoFromLink() {
         return alert("Geçersiz YouTube linki!");
     }
 
-    const isShorts = document.getElementById('v-shorts-checkbox')?.checked || false;
+    let isShorts = document.getElementById('v-shorts-checkbox')?.checked || false;
+    // youtube short link detection
+    if (!isShorts && url.includes('/shorts/')) isShorts = true;
     try {
         const docRef = await db.collection("videos").add({
             title: title,
@@ -247,6 +249,7 @@ async function publishVideoFromLink() {
             category: category || 'general',
             isVerified: currentUser.email === 'bluehairkomsi@gmail.com',
             likes: 0,
+            dislikes: 0,
             views: 0,
             uploadedAt: firebase.firestore.FieldValue.serverTimestamp(),
             isShorts: isShorts
@@ -266,6 +269,8 @@ async function publishVideoFromLink() {
         document.getElementById('v-description').value = "";
         closeUploadModal();
         loadVideos();
+        loadShorts();
+        if (isShorts) goToPage('shorts');
     } catch (err) {
         console.error(err);
         alert("Video yüklenirken hata oluştu: " + err.message);
@@ -344,6 +349,7 @@ async function publishVideoFromFile() {
                         isVerified: currentUser.email === 'bluehairkomsi@gmail.com',
                         thumbnail: thumbnail || null,
                         likes: 0,
+                        dislikes: 0,
                         views: 0,
                         uploadedAt: firebase.firestore.FieldValue.serverTimestamp(),
                         isShorts: isShorts
@@ -365,6 +371,8 @@ async function publishVideoFromFile() {
                     selectedFile = null;
                     closeUploadModal();
                     loadVideos();
+                    loadShorts();
+                    if (isShorts) goToPage('shorts');
                 }
             );
         } catch (err) {
@@ -410,18 +418,21 @@ function loadVideos() {
     const grid = document.getElementById('video-grid');
     if (!grid) return;
 
-    let query = db.collection("videos").where('isShorts', '==', false);
-    if (filter && filter !== 'all') {
-        query = query.where('category', '==', filter);
-    }
-    query.orderBy('uploadedAt', 'desc').onSnapshot(snapshot => {
+    // always load non-shorts sorted by upload time
+    db.collection("videos")
+      .where('isShorts', '==', false)
+      .orderBy('uploadedAt', 'desc')
+      .onSnapshot(snapshot => {
         allVideos = [];
         grid.innerHTML = '';
-        
+
         snapshot.forEach(doc => {
             const video = { id: doc.id, ...doc.data() };
-            allVideos.push(video);
-            createVideoCard(video, grid);
+            // client side category filter to avoid index requirements
+            if (!filter || filter === 'all' || video.category === filter) {
+                allVideos.push(video);
+                createVideoCard(video, grid);
+            }
         });
     });
 }
@@ -443,8 +454,8 @@ function createVideoCard(video, container) {
     if (currentUser && video.authorUID === currentUser.uid) {
         ownerControls = `
             <div style="margin-top:8px; display:flex; gap:8px; justify-content:flex-end;">
-                <button class="btn-action" style="font-size:12px; padding:4px 8px;" onclick="editVideo('${video.id}')">Düzenle</button>
-                <button class="btn-action" style="font-size:12px; padding:4px 8px;" onclick="deleteVideo('${video.id}')">Sil</button>
+                <button class="btn-action" style="font-size:12px; padding:4px 8px;" onclick="event.stopPropagation(); editVideo('${video.id}')">Düzenle</button>
+                <button class="btn-action" style="font-size:12px; padding:4px 8px;" onclick="event.stopPropagation(); deleteVideo('${video.id}')">Sil</button>
             </div>
         `;
     }
@@ -460,6 +471,9 @@ function createVideoCard(video, container) {
                 <div class="v-card-title">
                     ${video.title}
                     ${video.isVerified ? '<i class="fas fa-check-circle" style="color:var(--blue); font-size:14px; margin-left:4px;"></i>' : ''}
+                </div>
+                <div class="v-card-category" style="font-size:11px; color:var(--secondary-text); margin-top:2px;">
+                    ${video.category || 'Genel'}
                 </div>
                 <div class="v-card-author">${video.author}</div>
                 <div class="v-card-meta">${video.views || 0} izlenme • ${formatTime(video.uploadedAt)}</div>
@@ -497,10 +511,17 @@ function openVideoModal(video) {
     document.getElementById('detail-title').textContent = video.title;
     document.getElementById('detail-views').textContent = (video.views || 0) + ' izlenme';
     document.getElementById('detail-date').textContent = formatTime(video.uploadedAt);
+
+    // view sayısını bir kere arttır
+    db.collection('videos').doc(video.id).update({
+        views: firebase.firestore.FieldValue.increment(1)
+    });
+    video.views = (video.views || 0) + 1; // yerel objeyi de güncelle
     document.getElementById('detail-author').textContent = video.author;
     document.getElementById('detail-avatar').src = video.authorAvatar;
     document.getElementById('detail-description').textContent = video.description || 'Açıklama bulunamadı';
     document.getElementById('like-count').textContent = video.likes || 0;
+    document.getElementById('dislike-count').textContent = video.dislikes || 0;
 
     // Abone durumunu kontrol et
     updateSubscribeButton();
@@ -550,9 +571,29 @@ async function likeVideo() {
     }
 }
 
-function dislikeVideo() {
-    if (!currentUser) return alert('Lütfen giriş yapın');
-    alert("Beğenmeme geçici olarak devre dışı");
+async function dislikeVideo() {
+    if (!currentUser || !currentVideo) return alert('Lütfen giriş yapın');
+    try {
+        const docRef = db.collection('videos').doc(currentVideo.id);
+        const userDislikeRef = db.collection('videoDislikes').where('videoId','==',currentVideo.id)
+            .where('userId','==',currentUser.uid);
+        const snap = await userDislikeRef.get();
+        if (snap.empty) {
+            // dislike ekle
+            await docRef.update({ dislikes: firebase.firestore.FieldValue.increment(1) });
+            await db.collection('videoDislikes').add({
+                videoId: currentVideo.id,
+                userId: currentUser.uid,
+                timestamp: firebase.firestore.FieldValue.serverTimestamp()
+            });
+        } else {
+            // dislike kaldır
+            snap.forEach(doc=>doc.ref.delete());
+            await docRef.update({ dislikes: firebase.firestore.FieldValue.increment(-1) });
+        }
+    } catch(err){
+        alert('Hata: '+err.message);
+    }
 }
 
 // ======== PAYLAŞ ========
@@ -569,6 +610,18 @@ function shareVideo() {
 
 function saveToPlaylist() {
     alert("Çalma listesi özellikleri yakında gelecek!");
+}
+
+function reportVideo() {
+    if (!currentUser || !currentVideo) return alert('Lütfen giriş yapın');
+    const reason = prompt('Neden şikayet ediyorsunuz? (isteğe bağlı)');
+    db.collection('reports').add({
+        videoId: currentVideo.id,
+        reporter: currentUser.uid,
+        reason: reason || '',
+        timestamp: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    alert('Şikayetiniz alındı, teşekkürler.');
 }
 
 // ======== YORUM SİSTEMİ ========
@@ -626,7 +679,7 @@ async function postComment(videoId) {
     if (!text) return alert('Yorum yazın');
 
     try {
-        await db.collection('comments').add({
+        const commentRef = await db.collection('comments').add({
             videoId: videoId,
             userId: currentUser.uid,
             userName: currentUser.displayName,
@@ -639,6 +692,14 @@ async function postComment(videoId) {
         document.getElementById('new-comment-text').value = '';
         if (currentVideo) {
             loadComments(currentVideo.id);
+        }
+        // bildirim gönder video sahibine
+        const vidDoc = await db.collection('videos').doc(videoId).get();
+        if (vidDoc.exists) {
+            const vid = vidDoc.data();
+            if (vid.authorUID !== currentUser.uid) {
+                sendNotification(vid.authorUID, `${currentUser.displayName} videonuza yorum yaptı: ${text}`, videoId);
+            }
         }
     } catch (err) {
         alert("Yorum yazarken hata: " + err.message);
@@ -654,20 +715,22 @@ function replyComment(commentId) {
 }
 
 // ======== SHORTS SİSTEMİ ========
+let currentShorts = [];
+
 function loadShorts() {
     db.collection('videos')
         .where('isShorts', '==', true)
         .orderBy('uploadedAt', 'desc')
         .get()
         .then(snapshot => {
-            const shorts = [];
+            currentShorts = [];
             snapshot.forEach(doc => {
-                shorts.push({ id: doc.id, ...doc.data() });
+                currentShorts.push({ id: doc.id, ...doc.data() });
             });
             
-            if (shorts.length > 0) {
+            if (currentShorts.length > 0) {
                 shortsIndex = 0;
-                displayShort(shorts[shortsIndex]);
+                displayShort(currentShorts[shortsIndex]);
             } else {
                 document.getElementById('shorts-viewer').innerHTML = '<p style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);">Henüz Short yok</p>';
             }
@@ -675,37 +738,47 @@ function loadShorts() {
 }
 
 function displayShort(short) {
+    currentVideo = short; // gerekli like/dislike işlemleri için
     document.getElementById('shorts-iframe').src = short.videoId 
         ? `https://www.youtube.com/embed/${short.videoId}`
         : short.videoUrl;
-    
     document.getElementById('shorts-title').textContent = short.title;
     document.getElementById('shorts-description').textContent = short.description || '';
     document.getElementById('shorts-author').textContent = short.author;
     document.getElementById('shorts-avatar').src = short.authorAvatar;
     document.getElementById('short-likes').textContent = short.likes || 0;
+    if(document.getElementById('short-dislikes')){
+        document.getElementById('short-dislikes').textContent = short.dislikes || 0;
+    }
 }
 
 function nextShort() {
-    shortsIndex++;
-    alert("Shorts geçişi yakında optimize edilecek");
+    if (currentShorts.length === 0) return;
+    shortsIndex = (shortsIndex + 1) % currentShorts.length;
+    displayShort(currentShorts[shortsIndex]);
 }
 
 function prevShort() {
-    shortsIndex = Math.max(0, shortsIndex - 1);
-    alert("Shorts geçişi yakında optimize edilecek");
+    if (currentShorts.length === 0) return;
+    shortsIndex = (shortsIndex - 1 + currentShorts.length) % currentShorts.length;
+    displayShort(currentShorts[shortsIndex]);
 }
 
 function likeShort() {
-    alert("Short beğenme yakında gelecek!");
+    if (!currentVideo) return;
+    likeVideo();
+    // güncelle gösterge
+    document.getElementById('short-likes').textContent = (currentVideo.likes || 0) + 1;
 }
 
 function dislikeShort() {
-    alert("Short beğenmeme yakında gelecek!");
+    if (!currentVideo) return;
+    dislikeVideo();
 }
 
 function shareShort() {
-    alert("Short paylaşma yakında gelecek!");
+    if (!currentVideo) return;
+    shareVideo();
 }
 
 // ======== TRENDLERİ SAYFASI ========
@@ -1137,13 +1210,17 @@ function loadUserData() {
 }
 
 // ======== KATEGORİ FİLTRESİ ========
-function filterCategory(category) {
+function filterCategory(category, btnElem) {
     filter = category;
     
     document.querySelectorAll('.category-btn').forEach(btn => {
         btn.classList.remove('active');
     });
-    if (event && event.target) event.target.classList.add('active');
+    if (btnElem) btnElem.classList.add('active');
+
+    // temizle arama sonuçları
+    const channelResults = document.getElementById('channel-results');
+    if (channelResults) channelResults.innerHTML = '';
 
     // yükle yeniden
     loadVideos();
@@ -1363,6 +1440,19 @@ function showNotifications() {
     goToPage('notifications');
 }
 
+// genel bildirim ekleme fonksiyonu
+function sendNotification(toUid, message, videoId = null) {
+    if (!toUid) return;
+    db.collection('notifications').add({
+        to: toUid,
+        from: currentUser ? currentUser.uid : null,
+        message,
+        videoId,
+        read: false,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+}
+
 // yüklenen video üzerine abonelere bildirim gönderir
 function notifySubscribers(video) {
     const { id, title, authorUID, author } = video;
@@ -1370,16 +1460,9 @@ function notifySubscribers(video) {
     db.collection('subscriptions').where('channelId', '==', authorUID)
       .get().then(snap => {
           snap.forEach(sub => {
-              const toUid = sub.data().userId;
+              const toUid = sub.data().subscriberId;
               if (toUid === authorUID) return;
-              db.collection('notifications').add({
-                  to: toUid,
-                  from: authorUID,
-                  message,
-                  videoId: id,
-                  read: false,
-                  createdAt: firebase.firestore.FieldValue.serverTimestamp()
-              });
+              sendNotification(toUid, message, id);
           });
       });
 }
