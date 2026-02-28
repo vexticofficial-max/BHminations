@@ -4,10 +4,13 @@
  */
 
 // ======== FIREBASE YAPILANDIRMASI ========
+// ======== FIREBASE YAPILANDIRMASI (GÜVENLİ VE DÜZELTİLMİŞ) ========
 const firebaseConfig = {
-    const firebaseConfig = {
-    apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
-    authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+    // Eğer Vercel değişkeni bulamazsa boş kalmasın diye kontrol ekledik
+    apiKey: (typeof process !== 'undefined' && process.env.NEXT_PUBLIC_FIREBASE_API_KEY) 
+            ? process.env.NEXT_PUBLIC_FIREBASE_API_KEY 
+            : "BURAYA_ANAHTARINI_GECICI_OLARAK_YAZ_DENEMEK_ICIN", 
+    authDomain: "bhminations.firebaseapp.com",
     projectId: "bhminations",
     storageBucket: "bhminations.firebasestorage.app",
     messagingSenderId: "606037209431",
