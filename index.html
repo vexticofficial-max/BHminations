@@ -97,11 +97,11 @@
         <!-- ANA SAYFA -->
         <section id="home-page" class="page-section">
             <div class="categories-bar">
-                <button class="category-btn active" onclick="filterCategory('all')">Tümü</button>
-                <button class="category-btn" onclick="filterCategory('music')">Müzik</button>
-                <button class="category-btn" onclick="filterCategory('animation')">Animasyon</button>
-                <button class="category-btn" onclick="filterCategory('gaming')">Oyun</button>
-                <button class="category-btn" onclick="filterCategory('tutorial')">Eğitim</button>
+                <button class="category-btn active" onclick="filterCategory('all', this)">Tümü</button>
+                <button class="category-btn" onclick="filterCategory('music', this)">Müzik</button>
+                <button class="category-btn" onclick="filterCategory('animation', this)">Animasyon</button>
+                <button class="category-btn" onclick="filterCategory('gaming', this)">Oyun</button>
+                <button class="category-btn" onclick="filterCategory('tutorial', this)">Eğitim</button>
             </div>
             <div id="channel-results" class="subscribers-list" style="margin-bottom:20px;"></div>
             <div id="video-grid" class="video-grid"></div>
@@ -121,6 +121,7 @@
                         </button>
                         <button class="shorts-action-btn" onclick="dislikeShort()">
                             <i class="fas fa-thumbs-down"></i>
+                            <span id="short-dislikes">0</span>
                         </button>
                         <button class="shorts-action-btn" onclick="shareShort()">
                             <i class="fas fa-share"></i>
@@ -336,9 +337,13 @@
                         </button>
                         <button class="btn-action" onclick="dislikeVideo()">
                             <i class="fas fa-thumbs-down"></i>
+                            <span id="dislike-count">0</span>
                         </button>
                         <button class="btn-action" onclick="shareVideo()">
                             <i class="fas fa-share"></i> Paylaş
+                        </button>
+                        <button class="btn-action" onclick="reportVideo()">
+                            <i class="fas fa-flag"></i> Şikayet Et
                         </button>
                         <button class="btn-action" onclick="saveToPlaylist()">
                             <i class="fas fa-list"></i> Kaydet
