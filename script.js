@@ -1567,3 +1567,33 @@ function renderVideos(videos) {
         container.appendChild(card);
     });
 }
+function openVideoModal(video) {
+    if (!video || !video.youtubeId) return;
+    
+    currentVideo = video;
+    const modal = document.getElementById('video-modal');
+    const playerContainer = document.getElementById('detail-player-container');
+
+    // Pencereyi göster
+    modal.style.display = 'flex';
+
+    // YouTube oynatıcısını yükle
+    playerContainer.innerHTML = `
+        <iframe width="100%" height="100%" 
+            src="https://www.youtube.com/embed/${video.youtubeId}?autoplay=1" 
+            frameborder="0" allow="autoplay; encrypted-media" allowfullscreen>
+        </iframe>
+    `;
+
+    // Yazıları güncelle
+    document.getElementById('detail-title').textContent = video.title;
+    document.getElementById('detail-description').textContent = video.description || "Açıklama yok.";
+    document.getElementById('detail-views').textContent = `${video.views || 0} izlenme`;
+    document.getElementById('detail-author').textContent = video.authorName;
+    document.getElementById('detail-avatar').src = video.authorAvatar || 'https://via.placeholder.com/40';
+
+    // İzlenme sayısını Firestore'da artır
+    db.collection('videos').doc(video.id).update({
+        views: firebase.firestore.FieldValue.increment(1)
+    }).catch(err => console.error("İzlenme artırılamadı:", err));
+}
