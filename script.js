@@ -67,6 +67,8 @@ function goToPage(page) {
         loadTrends();
     } else if (page === 'liked') {
         loadLikedVideos();
+    } else if (page === 'notifications') {
+        loadNotifications();
     } else if (page === 'mychannel') {
         loadMyChannel();
     } else if (page === 'subscribers') {
@@ -131,10 +133,33 @@ auth.onAuthStateChanged(user => {
     currentUser = user;
     updateUI();
     if (user) {
+        ensureUserDoc();
         loadUserData();
         loadVideos();
     }
 });
+
+// Firestore kullanıcı belgesine sahip değilse oluştur
+function ensureUserDoc() {
+    if (!currentUser) return;
+    const ref = db.collection('users').doc(currentUser.uid);
+    ref.get().then(doc => {
+        if (!doc.exists) {
+            ref.set({
+                displayName: currentUser.displayName,
+                displayNameLower: currentUser.displayName.toLowerCase(),
+                email: currentUser.email,
+                avatar: currentUser.photoURL,
+                isVerified: currentUser.email === 'bluehairkomsi@gmail.com'
+            });
+        } else {
+            // keep verification status up to date
+            if (currentUser.email === 'bluehairkomsi@gmail.com' && !doc.data().isVerified) {
+                ref.update({ isVerified: true });
+            }
+        }
+    });
+}
 
 // UI'ı kullanıcı durumuna göre güncelle
 function updateUI() {
@@ -162,6 +187,19 @@ function updateUI() {
         }
 
         subscriptionsSection.style.display = 'block';
+
+        // unread badge (realtime)
+        db.collection('notifications')
+          .where('to','==', currentUser.uid)
+          .where('read','==', false)
+          .onSnapshot(snap=>{
+                const count = snap.size;
+                if(count > 0) {
+                    notificationsBtn.innerHTML = `<i class="fas fa-bell"></i><span class="badge">${count}</span>`;
+                } else {
+                    notificationsBtn.innerHTML = '<i class="fas fa-bell"></i>';
+                }
+          });
     } else {
         loginBtn.style.display = 'block';
         userMenu.style.display = 'none';
@@ -195,8 +233,9 @@ async function publishVideoFromLink() {
         return alert("Geçersiz YouTube linki!");
     }
 
+    const isShorts = document.getElementById('v-shorts-checkbox')?.checked || false;
     try {
-        await db.collection("videos").add({
+        const docRef = await db.collection("videos").add({
             title: title,
             description: description,
             videoId: videoId,
@@ -210,7 +249,15 @@ async function publishVideoFromLink() {
             likes: 0,
             views: 0,
             uploadedAt: firebase.firestore.FieldValue.serverTimestamp(),
-            isShorts: false
+            isShorts: isShorts
+        });
+
+        // bildirim gönder
+        notifySubscribers({
+            id: docRef.id,
+            title,
+            authorUID: currentUser.uid,
+            author: currentUser.displayName
         });
 
         alert("Video başarıyla paylaşıldı! 🚀");
@@ -245,61 +292,105 @@ async function publishVideoFromFile() {
     const description = document.getElementById('file-description').value.trim();
     const thumbnail = document.getElementById('file-thumbnail').value.trim();
     const category = document.getElementById('file-category').value;
+    const shortCheckbox = document.getElementById('file-shorts-checkbox');
 
     if (!title) return alert("Video başlığı gerekli!");
 
-    const fileRef = storage.ref('videos/' + currentUser.uid + '/' + selectedFile.name);
-    
-    try {
-        const uploadTask = fileRef.put(selectedFile);
-        
-        uploadTask.on('state_changed',
-            (snapshot) => {
-                const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-                document.getElementById('upload-progress').style.width = progress + '%';
-            },
-            (error) => {
-                alert("Yükleme hatası: " + error.message);
-            },
-            async () => {
-                const videoUrl = await fileRef.getDownloadURL();
-                
-                await db.collection("videos").add({
-                    title: title,
-                    description: description,
-                    videoId: null,
-                    videoUrl: videoUrl,
-                    author: currentUser.displayName,
-                    authorEmail: currentUser.email,
-                    authorUID: currentUser.uid,
-                    authorAvatar: currentUser.photoURL,
-                    category: category || 'general',
-                    isVerified: currentUser.email === 'bluehairkomsi@gmail.com',
-                    thumbnail: thumbnail || null,
-                    likes: 0,
-                    views: 0,
-                    uploadedAt: firebase.firestore.FieldValue.serverTimestamp(),
-                    isShorts: false
-                });
+    let isShorts = shortCheckbox?.checked || false;
 
-                alert("Video başarıyla yüklendi! 🚀");
-                document.getElementById('file-title').value = "";
-                document.getElementById('file-description').value = "";
-                document.getElementById('file-thumbnail').value = "";
-                document.getElementById('file-input').value = "";
-                selectedFile = null;
-                closeUploadModal();
-                loadVideos();
+    // Otomatik oryantasyon kontrolü
+    if (!isShorts) {
+        const vid = document.createElement('video');
+        vid.preload = 'metadata';
+        vid.onloadedmetadata = () => {
+            URL.revokeObjectURL(vid.src);
+            if (vid.videoHeight / vid.videoWidth > 1.7) {
+                isShorts = true;
             }
-        );
-    } catch (err) {
-        alert("Hata: " + err.message);
+            uploadFile();
+        };
+        vid.src = URL.createObjectURL(selectedFile);
+    } else {
+        uploadFile();
+    }
+
+    function uploadFile() {
+        const fileRef = storage.ref('videos/' + currentUser.uid + '/' + selectedFile.name);
+        
+        try {
+            const uploadTask = fileRef.put(selectedFile);
+            
+            uploadTask.on('state_changed',
+                (snapshot) => {
+                    const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+                    document.getElementById('upload-progress').style.width = progress + '%';
+                },
+                (error) => {
+                    alert("Yükleme hatası: " + error.message);
+                },
+                async () => {
+                    const videoUrl = await fileRef.getDownloadURL();
+                    
+                    const videoDocRef = await db.collection("videos").add({
+                        title: title,
+                        description: description,
+                        videoId: null,
+                        videoUrl: videoUrl,
+                        author: currentUser.displayName,
+                        authorEmail: currentUser.email,
+                        authorUID: currentUser.uid,
+                        authorAvatar: currentUser.photoURL,
+                        category: category || 'general',
+                        isVerified: currentUser.email === 'bluehairkomsi@gmail.com',
+                        thumbnail: thumbnail || null,
+                        likes: 0,
+                        views: 0,
+                        uploadedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                        isShorts: isShorts
+                    });
+
+                    // bildirim gönder
+                    notifySubscribers({
+                        id: videoDocRef.id,
+                        title,
+                        authorUID: currentUser.uid,
+                        author: currentUser.displayName
+                    });
+    
+                    alert("Video başarıyla yüklendi! 🚀");
+                    document.getElementById('file-title').value = "";
+                    document.getElementById('file-description').value = "";
+                    document.getElementById('file-thumbnail').value = "";
+                    document.getElementById('file-input').value = "";
+                    selectedFile = null;
+                    closeUploadModal();
+                    loadVideos();
+                }
+            );
+        } catch (err) {
+            alert("Hata: " + err.message);
+        }
     }
 }
 
 // ======== MODAL KONTROLÜ ========
 function openUploadModal() {
     document.getElementById('upload-modal').classList.add('active');
+}
+
+// ======== YARDIMCI FONKSİYONLAR ========
+function formatTime(timestamp) {
+    if (!timestamp) return '';
+    let date;
+    if (timestamp.toDate) date = timestamp.toDate();
+    else date = new Date(timestamp);
+    const now = new Date();
+    const diff = Math.floor((now - date) / 1000);
+    if (diff < 60) return 'Şimdi';
+    if (diff < 3600) return Math.floor(diff / 60) + ' dakika önce';
+    if (diff < 86400) return Math.floor(diff / 3600) + ' saat önce';
+    if (diff < 2592000) return Math.floor(diff / 86400) + ' gün önce';
+    return date.toLocaleDateString();
 }
 
 function closeUploadModal() {
@@ -319,19 +410,20 @@ function loadVideos() {
     const grid = document.getElementById('video-grid');
     if (!grid) return;
 
-    db.collection("videos")
-        .where('isShorts', '==', false)
-        .orderBy('uploadedAt', 'desc')
-        .onSnapshot(snapshot => {
-            allVideos = [];
-            grid.innerHTML = '';
-            
-            snapshot.forEach(doc => {
-                const video = { id: doc.id, ...doc.data() };
-                allVideos.push(video);
-                createVideoCard(video, grid);
-            });
+    let query = db.collection("videos").where('isShorts', '==', false);
+    if (filter && filter !== 'all') {
+        query = query.where('category', '==', filter);
+    }
+    query.orderBy('uploadedAt', 'desc').onSnapshot(snapshot => {
+        allVideos = [];
+        grid.innerHTML = '';
+        
+        snapshot.forEach(doc => {
+            const video = { id: doc.id, ...doc.data() };
+            allVideos.push(video);
+            createVideoCard(video, grid);
         });
+    });
 }
 
 function createVideoCard(video, container) {
@@ -346,26 +438,47 @@ function createVideoCard(video, container) {
     const thumbnail = video.videoId 
         ? `https://img.youtube.com/vi/${video.videoId}/mqdefault.jpg`
         : video.thumbnail || 'https://via.placeholder.com/280x157?text=No+Image';
+    const shortBadge = video.isShorts ? '<span style="position:absolute; top:8px; left:8px; background:var(--red); color:white; padding:2px 6px; font-size:10px; border-radius:4px;">SHORTS</span>' : '';
+    let ownerControls = '';
+    if (currentUser && video.authorUID === currentUser.uid) {
+        ownerControls = `
+            <div style="margin-top:8px; display:flex; gap:8px; justify-content:flex-end;">
+                <button class="btn-action" style="font-size:12px; padding:4px 8px;" onclick="editVideo('${video.id}')">Düzenle</button>
+                <button class="btn-action" style="font-size:12px; padding:4px 8px;" onclick="deleteVideo('${video.id}')">Sil</button>
+            </div>
+        `;
+    }
 
     card.innerHTML = `
-        <div class="v-card-thumbnail">
+        <div class="v-card-thumbnail" style="position:relative;">
             <img src="${thumbnail}" style="width:100%; height:100%; object-fit:cover;">
-            <span style="position:absolute; bottom:8px; right:8px; background:rgba(0,0,0,0.8); color:white; padding:4px 8px; border-radius:2px; font-size:12px; font-weight:bold;">
-                10:45
-            </span>
+            ${shortBadge}
         </div>
         <div class="v-card-info">
             <img src="${video.authorAvatar}" class="v-card-avatar">
             <div class="v-card-details">
                 <div class="v-card-title">
                     ${video.title}
-                    ${video.isVerified ? '<span class="verified-badge">✔</span>' : ''}
+                    ${video.isVerified ? '<i class="fas fa-check-circle" style="color:var(--blue); font-size:14px; margin-left:4px;"></i>' : ''}
                 </div>
                 <div class="v-card-author">${video.author}</div>
-                <div class="v-card-meta">${video.views || 0} izlenme • 2 gün önce</div>
+                <div class="v-card-meta">${video.views || 0} izlenme • ${formatTime(video.uploadedAt)}</div>
             </div>
         </div>
+        ${ownerControls}
     `;
+
+    // avatar/name clickable to channel
+    const avatarImg = card.querySelector('.v-card-avatar');
+    const authorName = card.querySelector('.v-card-author');
+    if (avatarImg) {
+        avatarImg.style.cursor = 'pointer';
+        avatarImg.onclick = e => { e.stopPropagation(); openChannel(video.authorUID); };
+    }
+    if (authorName) {
+        authorName.style.cursor = 'pointer';
+        authorName.onclick = e => { e.stopPropagation(); openChannel(video.authorUID); };
+    }
 
     container.appendChild(card);
 }
@@ -383,7 +496,7 @@ function openVideoModal(video) {
 
     document.getElementById('detail-title').textContent = video.title;
     document.getElementById('detail-views').textContent = (video.views || 0) + ' izlenme';
-    document.getElementById('detail-date').textContent = '2 gün önce';
+    document.getElementById('detail-date').textContent = formatTime(video.uploadedAt);
     document.getElementById('detail-author').textContent = video.author;
     document.getElementById('detail-avatar').src = video.authorAvatar;
     document.getElementById('detail-description').textContent = video.description || 'Açıklama bulunamadı';
@@ -644,27 +757,39 @@ function loadLikedVideos() {
 }
 
 // ======== KANAL SAYFASI ========
-async function loadMyChannel() {
-    if (!currentUser) {
-        goToPage('home');
-        return alert('Lütfen giriş yapın');
-    }
-
-    // Kullanıcı ayarlarını Firestore'dan yükle
-    const userDocRef = db.collection('users').doc(currentUser.uid);
+async function loadChannel(uid) {
+    if (!uid) return;
+    window._loadedChannelUid = uid;
+    const userDocRef = db.collection('users').doc(uid);
     const userDoc = await userDocRef.get();
-    let userData = userDoc.data() || {};
+    const userData = userDoc.data() || {};
+    
+    const isOwner = currentUser && currentUser.uid === uid;
 
-    document.getElementById('channel-name').textContent = userData.displayName || currentUser.displayName;
-    document.getElementById('channel-avatar').src = userData.avatar || currentUser.photoURL;
+    // isim ve doğrulama rozeti
+    let display = userData.displayName || 'Anonim';
+    if (userData.isVerified || userData.email === 'bluehairkomsi@gmail.com') {
+        display += ' <i class="fas fa-check-circle" style="color:var(--blue); font-size:16px;vertical-align:middle;"></i>';
+    }
+    document.getElementById('channel-name').innerHTML = display;
+    document.getElementById('channel-avatar').src = userData.avatar || 'https://via.placeholder.com/100';
     document.getElementById('channel-bio-text').textContent = userData.bio || '';
-    document.getElementById('edit-channel-btn').style.display = 'block';
-    document.getElementById('my-subscribers-btn').style.display = 'block';
-    document.getElementById('my-subscriptions-btn').style.display = 'block';
+    // banner varsa uygula
+    if (userData.banner) {
+        document.querySelector('.channel-cover').style.backgroundImage = `url(${userData.banner})`;
+        document.querySelector('.channel-cover').style.backgroundSize = 'cover';
+    } else {
+        document.querySelector('.channel-cover').style.backgroundImage = '';
+    }
+    document.getElementById('edit-channel-btn').style.display = isOwner ? 'block' : 'none';
+    document.getElementById('my-subscribers-btn').style.display = isOwner ? 'block' : 'none';
+    document.getElementById('my-subscriptions-btn').style.display = isOwner ? 'block' : 'none';
+    document.getElementById('channel-subscribe-btn').style.display = isOwner ? 'none' : 'block';
+    updateChannelSubscribeButton(uid);
 
     // Abone sayısını yükle
     const subSnapshot = await db.collection('subscriptions')
-        .where('channelId', '==', currentUser.uid)
+        .where('channelId', '==', uid)
         .get();
     document.getElementById('channel-subscribers').textContent = subSnapshot.size + ' abone';
 
@@ -673,7 +798,7 @@ async function loadMyChannel() {
     videosGrid.innerHTML = '';
 
     db.collection('videos')
-        .where('authorEmail', '==', currentUser.email)
+        .where('authorUID', '==', uid)
         .orderBy('uploadedAt', 'desc')
         .onSnapshot(snapshot => {
             videosGrid.innerHTML = '';
@@ -682,6 +807,19 @@ async function loadMyChannel() {
                 createVideoCard(video, videosGrid);
             });
         });
+}
+
+async function loadMyChannel() {
+    if (!currentUser) {
+        goToPage('home');
+        return alert('Lütfen giriş yapın');
+    }
+    await loadChannel(currentUser.uid);
+}
+
+function openChannel(uid) {
+    goToPage('mychannel');
+    loadChannel(uid);
 }
 
 function editChannel() {
@@ -733,6 +871,7 @@ async function saveProfileSettings() {
     try {
         await db.collection('users').doc(currentUser.uid).set({
             displayName: displayName,
+            displayNameLower: displayName.toLowerCase(),
             bio: bio,
             socialYoutube: socialYoutube,
             socialInstagram: socialInstagram,
@@ -1004,45 +1143,63 @@ function filterCategory(category) {
     document.querySelectorAll('.category-btn').forEach(btn => {
         btn.classList.remove('active');
     });
-    event.target.classList.add('active');
+    if (event && event.target) event.target.classList.add('active');
 
-    const grid = document.getElementById('video-grid');
-    grid.innerHTML = '';
-
-    let query = db.collection('videos').where('isShorts', '==', false);
-    
-    if (category !== 'all') {
-        query = query.where('category', '==', category);
-    }
-
-    query.orderBy('uploadedAt', 'desc').get().then(snapshot => {
-        snapshot.forEach(doc => {
-            const video = { id: doc.id, ...doc.data() };
-            createVideoCard(video, grid);
-        });
-    });
+    // yükle yeniden
+    loadVideos();
 }
 
 // ======== ARAMA FONKSİYONU ========
-function searchVideos() {
+async function searchVideos() {
     const searchTerm = document.getElementById('search-input').value.toLowerCase();
-    if (!searchTerm) return loadVideos();
-
+    const channelResults = document.getElementById('channel-results');
     const grid = document.getElementById('video-grid');
-    grid.innerHTML = '';
+    if (!searchTerm) {
+        if (channelResults) channelResults.innerHTML = '';
+        return loadVideos();
+    }
 
-    db.collection('videos')
-        .where('isShorts', '==', false)
-        .get()
-        .then(snapshot => {
-            snapshot.forEach(doc => {
-                const video = { id: doc.id, ...doc.data() };
-                if (video.title.toLowerCase().includes(searchTerm) ||
-                    video.author.toLowerCase().includes(searchTerm)) {
-                    createVideoCard(video, grid);
+    grid.innerHTML = '';
+    if (channelResults) channelResults.innerHTML = '';
+
+    // önce kanalları ara
+    try {
+        const usersSnap = await db.collection('users')
+            .where('displayNameLower', '>=', searchTerm)
+            .where('displayNameLower', '<', searchTerm + '\uf8ff')
+            .limit(10)
+            .get();
+        usersSnap.forEach(doc => {
+            const u = doc.data();
+            if (channelResults) {
+                const div = document.createElement('div');
+                div.className = 'subscriber-card';
+                div.style.cursor = 'pointer';
+                div.onclick = () => openChannel(doc.id);
+                let displayNameHtml = u.displayName || 'Anonim';
+                if (u.isVerified || u.email === 'bluehairkomsi@gmail.com') {
+                    displayNameHtml += ' <i class="fas fa-check-circle" style="color:var(--blue); font-size:14px; vertical-align:middle;"></i>';
                 }
-            });
+                div.innerHTML = `
+                    <img src="${u.avatar || 'https://via.placeholder.com/80?text=Avatar'}" class="subscriber-avatar">
+                    <div class="subscriber-name">${displayNameHtml}</div>
+                `;
+                channelResults.appendChild(div);
+            }
         });
+    } catch (err) {
+        console.error(err);
+    }
+
+    // videoları ara
+    const snapshot = await db.collection('videos').where('isShorts','==',false).get();
+    snapshot.forEach(doc => {
+        const video = { id: doc.id, ...doc.data() };
+        if (video.title.toLowerCase().includes(searchTerm) ||
+            video.author.toLowerCase().includes(searchTerm)) {
+            createVideoCard(video, grid);
+        }
+    });
 }
 
 // ======== SIRAKIN VİDEOLARI ========
@@ -1077,6 +1234,46 @@ function loadNextVideos(currentVideoId) {
         });
 }
 
+// ======== ABONELİK BUTONU GÜNCELLEME ========
+async function updateChannelSubscribeButton(channelUid) {
+    if (!currentUser) return;
+    const btn = document.getElementById('channel-subscribe-btn');
+    const snapshot = await db.collection('subscriptions')
+        .where('subscriberId','==', currentUser.uid)
+        .where('channelId','==', channelUid)
+        .get();
+    if (snapshot.empty) {
+        btn.textContent = 'Abone Ol';
+    } else {
+        btn.textContent = 'Aboneliği Kaldır';
+    }
+}
+
+async function toggleChannelSubscribe() {
+    if (!currentUser) return alert('Lütfen giriş yapın');
+    const channelUid = document.querySelector('#mychannel-page') ? (currentPage === 'mychannel' && currentUser ? currentUser.uid : null) : null;
+    // we can store last loaded channelUid globally
+    if (!window._loadedChannelUid) return;
+    const channelId = window._loadedChannelUid;
+    const snapshot = await db.collection('subscriptions')
+        .where('subscriberId','==', currentUser.uid)
+        .where('channelId','==', channelId)
+        .get();
+    if (snapshot.empty) {
+        await db.collection('subscriptions').add({
+            subscriberId: currentUser.uid,
+            channelId: channelId,
+            channelName: document.getElementById('channel-name').textContent,
+            timestamp: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        alert('Abone olundu!');
+    } else {
+        snapshot.forEach(doc => doc.ref.delete());
+        alert('Abonelik kaldırıldı!');
+    }
+    updateChannelSubscribeButton(channelId);
+}
+
 // ======== KURUCU PANELİ ========
 async function loadAdminPanel() {
     if (currentUser?.email !== 'bluehairkomsi@gmail.com') return;
@@ -1105,11 +1302,44 @@ async function deleteVideo(videoId) {
     if (!confirm('Bu videoyu silmek istediğine emin misin?')) return;
 
     try {
+        const doc = await db.collection('videos').doc(videoId).get();
+        const data = doc.data();
+        if (!currentUser) return;
+        if (currentUser.email !== 'bluehairkomsi@gmail.com' && data.authorUID !== currentUser.uid) {
+            return alert('Bu işlemi yapmaya yetkiniz yok');
+        }
         await db.collection('videos').doc(videoId).delete();
         alert('Video silindi');
-        loadAdminPanel();
+        if (currentPage === 'admin') loadAdminPanel();
+        else if (currentPage === 'mychannel' || currentPage === 'home') loadVideos();
     } catch (err) {
         alert('Silme hatası: ' + err.message);
+    }
+}
+
+async function editVideo(videoId) {
+    if (!currentUser) return;
+    const doc = await db.collection('videos').doc(videoId).get();
+    const data = doc.data();
+    if (!data) return;
+    if (currentUser.email !== 'bluehairkomsi@gmail.com' && data.authorUID !== currentUser.uid) {
+        return alert('Bu işlemi yapmaya yetkiniz yok');
+    }
+
+    const newTitle = prompt('Yeni başlık', data.title) || data.title;
+    const newDesc = prompt('Yeni açıklama', data.description || '') || data.description;
+    const newCat = prompt('Yeni kategori (music,animation,gaming,tutorial)', data.category) || data.category;
+
+    try {
+        await db.collection('videos').doc(videoId).update({
+            title: newTitle,
+            description: newDesc,
+            category: newCat
+        });
+        alert('Video güncellendi');
+        loadVideos();
+    } catch (err) {
+        alert('Güncelleme hatası: ' + err.message);
     }
 }
 
@@ -1129,7 +1359,82 @@ async function adminBan() {
 
 // ======== BAŞLANGIÇ ========
 function showNotifications() {
-    alert("Bildirim paneli yakında gelecek!");
+    if (!currentUser) return alert('Lütfen giriş yapın');
+    goToPage('notifications');
+}
+
+// yüklenen video üzerine abonelere bildirim gönderir
+function notifySubscribers(video) {
+    const { id, title, authorUID, author } = video;
+    const message = `${author} yeni bir video paylaştı: ${title}`;
+    db.collection('subscriptions').where('channelId', '==', authorUID)
+      .get().then(snap => {
+          snap.forEach(sub => {
+              const toUid = sub.data().userId;
+              if (toUid === authorUID) return;
+              db.collection('notifications').add({
+                  to: toUid,
+                  from: authorUID,
+                  message,
+                  videoId: id,
+                  read: false,
+                  createdAt: firebase.firestore.FieldValue.serverTimestamp()
+              });
+          });
+      });
+}
+
+// bildirimleri yükler
+async function loadNotifications() {
+    if (!currentUser) return;
+    const list = document.getElementById('notifications-list');
+    list.innerHTML = '';
+    // işaretle okunmamış olanları artık okundu
+    const unreadSnap = await db.collection('notifications')
+        .where('to', '==', currentUser.uid)
+        .where('read', '==', false)
+        .get();
+    unreadSnap.forEach(d => d.ref.update({ read: true }));
+    updateUI();
+
+    const snapshot = await db.collection('notifications')
+        .where('to', '==', currentUser.uid)
+        .orderBy('createdAt', 'desc')
+        .get();
+    if (snapshot.empty) {
+        const none = document.createElement('div');
+        none.textContent = 'Yeni bildiriminiz yok.';
+        none.style.color = 'var(--secondary-text)';
+        none.style.textAlign = 'center';
+        none.style.padding = '20px';
+        list.appendChild(none);
+    } else {
+        snapshot.forEach(doc => {
+            const data = doc.data();
+            const card = document.createElement('div');
+            card.className = 'notification-card';
+            if (!data.read) card.classList.add('unread');
+            card.textContent = data.message;
+            card.onclick = () => {
+                if (data.videoId) goToVideo(data.videoId);
+                if (!data.read) {
+                    doc.ref.update({ read: true });
+                    card.classList.remove('unread');
+                    updateUI();
+                }
+            };
+            list.appendChild(card);
+        });
+    }
+}
+
+// videoya git
+function goToVideo(id) {
+    db.collection('videos').doc(id).get().then(doc => {
+        if (doc.exists) {
+            openVideoModal({ id: doc.id, ...doc.data() });
+        }
+    });
 }
 
 // Enter tuşu ile arama
