@@ -2070,3 +2070,149 @@ function loadSideVideos() {
         });
     });
 }
+// ======== GERÇEK VERİ TABANLI WATCH PAGE SİSTEMİ ========
+
+async function openVideoModal(video) {
+    const modal = document.getElementById('video-modal');
+    if (!modal) return;
+
+    modal.style.display = 'flex';
+    modal.innerHTML = '<div class="loading">Yükleniyor...</div>'; // Yüklenme ekranı
+
+    // 1. Gerçek Verileri Çek (Abone Sayısı, Like Sayısı, Yorumlar)
+    const authorDoc = await db.collection('users').doc(video.authorId).get();
+    const authorData = authorDoc.data() || { subscribers: [] };
+    const subCount = authorData.subscribers ? authorData.subscribers.length : 0;
+    
+    // Kullanıcı abone mi kontrol et
+    const isSubbed = auth.currentUser && authorData.subscribers && authorData.subscribers.includes(auth.currentUser.uid);
+
+    // 2. YouTube ID Temizleme
+    let vidId = video.youtubeId || "";
+    if (vidId.includes("v=")) vidId = vidId.split("v=")[1].split("&")[0];
+    vidId = vidId.substring(0, 11);
+
+    // 3. ARAYÜZÜ İNŞA ET
+    modal.innerHTML = `
+        <div class="watch-container" style="display:flex; width:100%; height:100%; background:#0f0f0f; color:white; overflow-y:auto;">
+            <button onclick="closeVideoModal()" style="position:fixed; top:20px; right:30px; background:none; border:none; color:white; font-size:40px; cursor:pointer; z-index:9999;">&times;</button>
+
+            <div style="flex:3; padding:20px; max-width: 1280px;">
+                <div id="player" style="width:100%; aspect-ratio:16/9; background:#000; border-radius:12px; overflow:hidden;">
+                    <iframe width="100%" height="100%" src="https://www.youtube.com/embed/${vidId}?autoplay=1" frameborder="0" allowfullscreen></iframe>
+                </div>
+
+                <h1 style="font-size:20px; margin:15px 0;">${video.title}</h1>
+
+                <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:15px; border-bottom:1px solid #333; padding-bottom:20px;">
+                    <div style="display:flex; align-items:center; gap:12px;">
+                        <img src="${video.authorAvatar}" onclick="goToProfile('${video.authorId}')" style="width:40px; height:40px; border-radius:50%; cursor:pointer;">
+                        <div>
+                            <h4 onclick="goToProfile('${video.authorId}')" style="cursor:pointer; margin:0;">${video.authorName}</h4>
+                            <p style="font-size:12px; color:#aaa; margin:0;">${subCount} abone</p>
+                        </div>
+                        ${isSubbed 
+                            ? `<button onclick="handleSubscription('${video.authorId}', true)" style="background:#333; color:white; border:none; padding:10px 20px; border-radius:20px; font-weight:bold; cursor:pointer; margin-left:15px;">Abonelikten Çık</button>`
+                            : `<button onclick="handleSubscription('${video.authorId}', false)" style="background:white; color:black; border:none; padding:10px 20px; border-radius:20px; font-weight:bold; cursor:pointer; margin-left:15px;">Abone Ol</button>`
+                        }
+                    </div>
+
+                    <div style="display:flex; background:#222; border-radius:20px; overflow:hidden;">
+                        <button onclick="handleLike('${video.id}')" style="background:none; border:none; color:white; padding:10px 15px; cursor:pointer; border-right:1px solid #444; display:flex; align-items:center; gap:5px;">
+                            <span class="material-icons">thumb_up</span> 
+                            <span>${video.likes || 0}</span>
+                        </button>
+                        <button style="background:none; border:none; color:white; padding:10px 15px; cursor:pointer;">
+                            <span class="material-icons">thumb_down</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div id="comments-app" style="margin-top:20px;">
+                    <h3 id="comment-count">Yükleniyor...</h3>
+                    <div style="display:flex; gap:15px; margin:20px 0;">
+                        <img src="${auth.currentUser ? auth.currentUser.photoURL : 'https://via.placeholder.com/40'}" style="width:40px; height:40px; border-radius:50%;">
+                        <div style="flex:1;">
+                            <input id="comment-input" type="text" placeholder="Yorum ekleyin..." style="width:100%; background:none; border:none; border-bottom:1px solid #333; color:white; padding:8px 0; outline:none;">
+                            <div style="display:flex; justify-content:flex-end; margin-top:10px;">
+                                <button onclick="addComment('${video.id}')" style="background:#3ea6ff; color:#000; border:none; padding:8px 16px; border-radius:18px; font-weight:bold; cursor:pointer;">Yorum Yap</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="comments-list"></div>
+                </div>
+            </div>
+
+            <div style="flex:1; padding:20px; border-left:1px solid #333; min-width:300px;">
+                <h3 style="font-size:16px; margin-bottom:15px;">Sıradaki Videolar</h3>
+                <div id="side-video-list"></div>
+            </div>
+        </div>
+    `;
+
+    loadComments(video.id);
+    loadSideVideos(video.id);
+}
+
+// 2. PROFİLE GİTME FONKSİYONU
+function goToProfile(userId) {
+    console.log("Profile gidiliyor:", userId);
+    window.location.href = `profile.html?id=${userId}`;
+}
+
+// 3. ABONE OLMA / ÇIKMA (GERÇEK)
+async function handleSubscription(authorId, isSubbed) {
+    if (!auth.currentUser) return alert("Abone olmak için giriş yapmalısın!");
+
+    const authorRef = db.collection('users').doc(authorId);
+    if (isSubbed) {
+        await authorRef.update({
+            subscribers: firebase.firestore.FieldValue.arrayRemove(auth.currentUser.uid)
+        });
+    } else {
+        await authorRef.update({
+            subscribers: firebase.firestore.FieldValue.arrayUnion(auth.currentUser.uid)
+        });
+    }
+    // Videoyu tekrar yükleyerek arayüzü güncelle
+    location.reload(); 
+}
+
+// 4. GERÇEK YORUM SİSTEMİ
+async function loadComments(videoId) {
+    const list = document.getElementById('comments-list');
+    const snapshot = await db.collection('videos').doc(videoId).collection('comments').orderBy('createdAt', 'desc').get();
+    
+    document.getElementById('comment-count').innerText = `${snapshot.size} Yorum`;
+    list.innerHTML = '';
+
+    snapshot.forEach(doc => {
+        const c = doc.data();
+        list.innerHTML += `
+            <div style="display:flex; gap:15px; margin-bottom:20px;">
+                <img src="${c.userAvatar}" style="width:40px; height:40px; border-radius:50%;">
+                <div>
+                    <p style="font-size:13px; font-weight:bold; margin:0;">${c.userName} <span style="font-weight:normal; color:#aaa; margin-left:10px;">yeni</span></p>
+                    <p style="margin:5px 0; font-size:14px;">${c.text}</p>
+                </div>
+            </div>
+        `;
+    });
+}
+
+async function addComment(videoId) {
+    const text = document.getElementById('comment-input').value;
+    if (!auth.currentUser) return alert("Yorum yapmak için giriş yapmalısın!");
+    if (!text) return;
+
+    await db.collection('videos').doc(videoId).collection('comments').add({
+        userId: auth.currentUser.uid,
+        userName: auth.currentUser.displayName,
+        userAvatar: auth.currentUser.photoURL,
+        text: text,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+
+    document.getElementById('comment-input').value = '';
+    loadComments(videoId);
+}
