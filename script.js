@@ -438,11 +438,9 @@ function loadVideos() {
 }
 
 function createVideoCard(video, container) {
-    const card = document.createElement('a');
+    const card = document.createElement('div');
     card.className = 'v-card';
-    card.href = '#';
-    card.onclick = (e) => {
-        e.preventDefault();
+    card.onclick = () => {
         openVideoModal(video);
     };
 
@@ -499,14 +497,29 @@ function createVideoCard(video, container) {
 
 // ======== VİDEO DETAY MODAL ========
 function openVideoModal(video) {
+    console.log('opening video:', video);
     currentVideo = video;
     const modal = document.getElementById('video-modal');
-    
-    document.getElementById('detail-player').src = video.videoId 
-        ? `https://www.youtube.com/embed/${video.videoId}`
-        : `<div style='width:100%; height:100%; background:#000; display:flex; align-items:center; justify-content:center; color:white;'>
-             <p>Video oynatıcı yükleniyor...</p>
-           </div>`;
+    const playerContainer = document.getElementById('detail-player-container');
+    playerContainer.innerHTML = '';
+    if (video.videoId) {
+        const iframe = document.createElement('iframe');
+        iframe.width = '100%';
+        iframe.height = '100%';
+        iframe.frameBorder = '0';
+        iframe.allow = 'fullscreen';
+        iframe.src = `https://www.youtube.com/embed/${video.videoId}`;
+        playerContainer.appendChild(iframe);
+    } else if (video.videoUrl) {
+        const vid = document.createElement('video');
+        vid.controls = true;
+        vid.width = '100%';
+        vid.height = '100%';
+        vid.src = video.videoUrl;
+        playerContainer.appendChild(vid);
+    } else {
+        playerContainer.textContent = 'Video oynatıcı yüklenemedi.';
+    }
 
     document.getElementById('detail-title').textContent = video.title;
     document.getElementById('detail-views').textContent = (video.views || 0) + ' izlenme';
