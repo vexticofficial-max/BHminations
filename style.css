@@ -156,6 +156,22 @@ body {
     cursor: pointer;
     border-radius: 50%;
     transition: background 0.2s;
+    position: relative;
+}
+
+.header-icon .badge {
+    position: absolute;
+    top: -4px;
+    right: -4px;
+    background: var(--red);
+    color: white;
+    font-size: 10px;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .header-icon:hover {
@@ -438,6 +454,7 @@ body {
     font-size: 12px;
     color: var(--secondary-text);
     margin-bottom: 2px;
+    cursor: pointer;
 }
 
 .v-card-meta {
@@ -607,17 +624,26 @@ body {
 
 /* ======== CHANNEL ======== */
 .channel-header {
-    margin-bottom: 32px;
+    margin-bottom: 24px;
 }
 
 .channel-cover {
     width: 100%;
-    height: 200px;
+    height: 140px;
     background: linear-gradient(135deg, var(--blue), var(--red));
     border-radius: 12px;
-    margin-bottom: -40px;
+    margin-bottom: -30px;
     position: relative;
     z-index: 1;
+}
+
+.channel-info {
+    flex-wrap: wrap;
+}
+
+.channel-info img.channel-avatar {
+    width: 80px;
+    height: 80px;
 }
 
 .channel-info {
@@ -1315,8 +1341,15 @@ textarea:focus {
 
 .subscribers-list {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-    gap: 20px;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 16px;
+}
+
+.channel-results {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 20px;
 }
 
 .subscriber-card {
@@ -1384,11 +1417,11 @@ textarea:focus {
     background-color: var(--card-bg);
     border: 1px solid var(--border-color);
     border-radius: 12px;
-    padding: 20px;
-    margin-bottom: 24px;
+    padding: 16px;
+    margin-bottom: 20px;
     display: flex;
     align-items: center;
-    gap: 16px;
+    gap: 12px;
     cursor: pointer;
     transition: transform 0.2s;
 }
