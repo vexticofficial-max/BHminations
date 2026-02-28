@@ -9,7 +9,7 @@ const firebaseConfig = {
     // Eğer Vercel değişkeni bulamazsa boş kalmasın diye kontrol ekledik
     apiKey: (typeof process !== 'undefined' && process.env.NEXT_PUBLIC_FIREBASE_API_KEY) 
             ? process.env.NEXT_PUBLIC_FIREBASE_API_KEY 
-            : "BURAYA_ANAHTARINI_GECICI_OLARAK_YAZ_DENEMEK_ICIN", 
+            : "AIzaSyAaDFdyia63SMjnBreMRUQbCPs4foUHFl8", 
     authDomain: "bhminations.firebaseapp.com",
     projectId: "bhminations",
     storageBucket: "bhminations.firebasestorage.app",
