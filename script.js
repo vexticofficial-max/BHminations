@@ -1828,3 +1828,70 @@ function renderVideos(videos) {
         container.appendChild(card);
     });
 }
+// ======== ANA SAYFAYI ZORLA TAMİR ET ========
+function loadVideos() {
+    console.log("loadVideos tetiklendi, videolar çekiliyor...");
+    
+    db.collection('videos')
+        .orderBy('createdAt', 'desc')
+        .get()
+        .then(snapshot => {
+            const container = document.getElementById('video-grid');
+            if (!container) return;
+            container.innerHTML = '';
+
+            snapshot.forEach(doc => {
+                const video = { id: doc.id, ...doc.data() };
+                
+                // Kategori filtresi varsa kontrol et
+                if (filter !== 'all' && video.category !== filter) return;
+
+                const card = document.createElement('div');
+                card.className = 'video-card';
+                
+                // Tıklama olayını buraya çiviliyoruz
+                card.onclick = () => {
+                    console.log("Karta tıklandı! Video ID:", video.youtubeId);
+                    openVideoModal(video);
+                };
+
+                card.innerHTML = `
+                    <div class="video-thumbnail">
+                        <img src="https://img.youtube.com/vi/${video.youtubeId}/mqdefault.jpg">
+                    </div>
+                    <div class="video-info">
+                        <h3 class="video-title">${video.title}</h3>
+                        <p class="video-meta">${video.authorName} • ${video.views || 0} izlenme</p>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        });
+}
+function openVideoModal(video) {
+    const modal = document.getElementById('video-modal');
+    const player = document.getElementById('detail-player-container');
+    
+    if (!modal || !player) {
+        console.error("HATA: HTML'de modal veya oynatıcı kutusu bulunamadı!");
+        return;
+    }
+
+    // Modalı görünür yap
+    modal.style.display = 'flex';
+    modal.style.opacity = '1';
+    modal.style.zIndex = '9999';
+
+    // YouTube ID temizleme ve yükleme
+    let vidId = video.youtubeId;
+    if (vidId.includes("v=")) vidId = vidId.split("v=")[1].substring(0, 11);
+    
+    player.innerHTML = `
+        <iframe width="100%" height="100%" 
+            src="https://www.youtube.com/embed/${vidId}?autoplay=1" 
+            frameborder="0" allow="autoplay; encrypted-media" allowfullscreen>
+        </iframe>
+    `;
+    
+    document.getElementById('detail-title').innerText = video.title;
+}
