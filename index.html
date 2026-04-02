@@ -3,435 +3,555 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BHminations - Animasyon Platformu</title>
+    <title>BHminations - Ultimate YouTube Platformu</title>
     
+    <!-- Google Fonts & Font Awesome -->
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Firebase SDK (v10.8.0 - Compat) -->
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-storage-compat.js"></script>
-    <link rel="stylesheet" href="style.css">
+
+    <style>
+        /* ======== DEĞİŞKENLER VE TEMEL STİLLER ======== */
+        :root {
+            --bg-color: #f9f9f9;
+            --text-color: #030303;
+            --secondary-text: #606060;
+            --border-color: #e5e5e5;
+            --card-bg: #ffffff;
+            --yt-red: #ff0000;
+            --yt-blue: #065fd4;
+            --hover-bg: #f2f2f2;
+            --sidebar-width: 240px;
+        }
+
+        .dark-mode {
+            --bg-color: #0f0f0f;
+            --text-color: #f1f1f1;
+            --secondary-text: #aaaaaa;
+            --border-color: #3f3f3f;
+            --card-bg: #0f0f0f;
+            --hover-bg: #272727;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Roboto', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            overflow-x: hidden;
+            transition: background 0.3s;
+        }
+
+        /* ======== HEADER ======== */
+        header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 56px;
+            background: var(--bg-color);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 16px;
+            z-index: 1000;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 20px;
+            font-weight: bold;
+            cursor: pointer;
+            letter-spacing: -1px;
+        }
+        .logo i { color: var(--yt-red); font-size: 24px; }
+
+        .search-area {
+            display: flex;
+            flex: 0 1 600px;
+            margin: 0 40px;
+        }
+        .search-area input {
+            flex: 1;
+            padding: 8px 16px;
+            border: 1px solid var(--border-color);
+            border-radius: 40px 0 0 40px;
+            background: var(--bg-color);
+            color: var(--text-color);
+            outline: none;
+        }
+        .search-area button {
+            padding: 0 20px;
+            border: 1px solid var(--border-color);
+            border-left: none;
+            border-radius: 0 40px 40px 0;
+            background: var(--hover-bg);
+            cursor: pointer;
+            color: var(--text-color);
+        }
+
+        .header-icons { display: flex; align-items: center; gap: 15px; }
+        .icon-btn { 
+            background: none; border: none; font-size: 20px; 
+            color: var(--text-color); cursor: pointer; padding: 8px; border-radius: 50%;
+        }
+        .icon-btn:hover { background: var(--hover-bg); }
+
+        .user-profile-btn {
+            width: 32px; height: 32px; border-radius: 50%;
+            background: var(--yt-blue); color: white; border: none;
+            cursor: pointer; overflow: hidden; display: flex; align-items: center; justify-content: center;
+        }
+
+        /* ======== SIDEBAR ======== */
+        .sidebar {
+            position: fixed;
+            left: 0; top: 56px; bottom: 0;
+            width: var(--sidebar-width);
+            background: var(--bg-color);
+            padding: 12px 0;
+            overflow-y: auto;
+            z-index: 900;
+        }
+        .sidebar-item {
+            display: flex; align-items: center; gap: 24px;
+            padding: 10px 24px; cursor: pointer; text-decoration: none;
+            color: var(--text-color); font-size: 14px;
+        }
+        .sidebar-item:hover, .sidebar-item.active { background: var(--hover-bg); }
+        .sidebar-item i { font-size: 20px; width: 24px; text-align: center; }
+        .sidebar-sep { height: 1px; background: var(--border-color); margin: 12px 0; }
+
+        /* ======== MAIN CONTENT ======== */
+        .content {
+            margin-left: var(--sidebar-width);
+            margin-top: 56px;
+            padding: 24px;
+        }
+
+        .video-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 16px;
+        }
+
+        .v-card { cursor: pointer; margin-bottom: 20px; }
+        .v-thumb {
+            width: 100%; aspect-ratio: 16/9;
+            background: #ccc; border-radius: 12px;
+            margin-bottom: 12px; position: relative;
+            overflow: hidden;
+        }
+        .v-thumb img { width: 100%; height: 100%; object-fit: cover; }
+        .v-meta { display: flex; gap: 12px; }
+        .v-avatar { width: 36px; height: 36px; border-radius: 50%; background: #eee; flex-shrink: 0; overflow: hidden; }
+        .v-avatar img { width: 100%; height: 100%; object-fit: cover; }
+        .v-info h3 { font-size: 14px; line-height: 1.4; margin-bottom: 4px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+        .v-stats { font-size: 12px; color: var(--secondary-text); }
+
+        /* ======== SHORTS UI ======== */
+        .shorts-container {
+            max-width: 400px; margin: 0 auto;
+            height: calc(100vh - 100px);
+            scroll-snap-type: y mandatory;
+            overflow-y: scroll;
+            display: none;
+        }
+        .short-item {
+            scroll-snap-align: start;
+            height: 100%; width: 100%;
+            background: #000; border-radius: 16px;
+            position: relative; margin-bottom: 20px;
+        }
+        .short-video { width: 100%; height: 100%; border-radius: 16px; object-fit: cover; }
+
+        /* ======== MODALS ======== */
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.8); z-index: 2000;
+            display: none; align-items: center; justify-content: center;
+        }
+        .modal-content {
+            background: var(--card-bg); width: 90%; max-width: 1200px;
+            max-height: 90vh; border-radius: 12px; overflow-y: auto; padding: 24px;
+            position: relative;
+        }
+        .close-modal {
+            position: absolute; top: 16px; right: 16px; font-size: 24px;
+            cursor: pointer; color: var(--text-color);
+        }
+
+        /* ======== VIDEO PLAYER & COMMENTS ======== */
+        .player-container { width: 100%; aspect-ratio: 16/9; background: #000; border-radius: 8px; margin-bottom: 16px; overflow: hidden; }
+        .player-container video { width: 100%; height: 100%; border: none; }
+        
+        .comment-input-area { display: flex; gap: 12px; margin-top: 20px; margin-bottom: 20px; }
+        .comment-input-area input {
+            flex: 1; border: none; border-bottom: 1px solid var(--border-color);
+            background: transparent; color: var(--text-color); padding: 8px 0; outline: none;
+        }
+        .comment-item { display: flex; gap: 12px; margin-top: 16px; }
+        .comment-content { flex: 1; }
+        .comment-text { font-size: 14px; }
+        .comment-author { font-weight: bold; font-size: 13px; margin-bottom: 4px; }
+
+        /* ======== RESPONSIVE ======== */
+        @media (max-width: 768px) {
+            .sidebar { width: 72px; }
+            .sidebar span { display: none; }
+            .content { margin-left: 72px; }
+            .search-area { display: none; }
+        }
+    </style>
 </head>
-<body>
+<body class="dark-mode">
 
-    <!-- HEADER/NAVBAR -->
-    <header class="header">
+    <!-- Header -->
+    <header>
         <div class="header-left">
-            <button class="menu-toggle" onclick="toggleSidebar()">
-                <i class="fas fa-bars"></i>
-            </button>
-            <div class="logo" onclick="goToPage('home')">
-                <i class="fas fa-play-circle"></i> BHminations
+            <button class="icon-btn" onclick="toggleSidebar()"><i class="fas fa-bars"></i></button>
+            <div class="logo" onclick="showPage('home')">
+                <i class="fab fa-youtube"></i> BHminations
             </div>
         </div>
-
-        <div class="search-container">
-            <input type="text" class="search-bar" placeholder="Ara..." id="search-input">
-            <button class="search-btn" onclick="searchVideos()">
-                <i class="fas fa-search"></i>
-            </button>
+        
+        <div class="search-area">
+            <input type="text" placeholder="Ara...">
+            <button><i class="fas fa-search"></i></button>
         </div>
 
-        <div class="header-right">
-            <button class="header-icon" onclick="toggleTheme()" title="Tema">
-                <i class="fas fa-moon"></i>
+        <div class="header-icons">
+            <button class="icon-btn" onclick="openUploadModal()"><i class="fas fa-video"></i></button>
+            <button class="icon-btn" onclick="toggleDarkMode()"><i class="fas fa-moon"></i></button>
+            <button class="user-profile-btn" id="loginBtn" onclick="handleAuth()">
+                <i class="fas fa-user"></i>
             </button>
-            <button class="header-icon" id="upload-mobile-btn" onclick="openUploadModal()" style="display:none;" title="Yükle">
-                <i class="fas fa-film"></i>
-            </button>
-            <button class="header-icon" id="notifications-btn" onclick="showNotifications()" style="display:none;" title="Bildirimler">
-                <i class="fas fa-bell"></i>
-            </button>
-            
-            <button id="login-btn" class="btn-login" onclick="googleLogin()">
-                <i class="fas fa-sign-in-alt"></i> Oturum Aç
-            </button>
-            
-            <div id="user-menu" class="user-menu" style="display:none;">
-                <img id="u-img" class="user-avatar" alt="Avatar">
-                <div class="dropdown-menu" id="dropdown-menu">
-                    <div class="menu-header" id="u-name"></div>
-                    <a onclick="goToPage('mychannel')"><i class="fas fa-user-circle"></i> Kanalım</a>
-                    <a onclick="goToPage('subscribers')"><i class="fas fa-users"></i> Abonelerim</a>
-                    <a onclick="goToPage('subscriptions')"><i class="fas fa-tv"></i> Abonelikleri</a>
-                    <a onclick="goToPage('settings')"><i class="fas fa-cog"></i> Profil Ayarları</a>
-                    <a onclick="goToPage('liked')"><i class="fas fa-heart"></i> Beğenilenler</a>
-                    <hr style="margin:5px 0; border:none; border-top:1px solid var(--border-color);">
-                    <a id="admin-menu-item" style="display:none;" onclick="goToPage('admin')"><i class="fas fa-crown"></i> Kurucu Paneli</a>
-                    <hr id="admin-sep" style="display:none; margin:5px 0; border:none; border-top:1px solid var(--border-color);">
-                    <a onclick="logout()"><i class="fas fa-sign-out-alt"></i> Çıkış Yap</a>
-                </div>
-            </div>
         </div>
     </header>
 
-    <!-- SIDEBAR -->
-    <div class="sidebar-container">
-        <nav class="sidebar" id="sidebar">
-            <div class="sidebar-section">
-                <a href="#" class="sidebar-item active" onclick="event.preventDefault(); goToPage('home')">
-                    <i class="fas fa-home"></i> <span>Anasayfa</span>
-                </a>
-                <a href="#" class="sidebar-item" onclick="event.preventDefault(); goToPage('shorts')">
-                    <i class="fas fa-video"></i> <span>Shorts</span>
-                </a>
-                <a href="#" class="sidebar-item" onclick="event.preventDefault(); goToPage('trends')">
-                    <i class="fas fa-fire"></i> <span>Trendler</span>
-                </a>
-                <a href="#" class="sidebar-item" onclick="event.preventDefault(); goToPage('liked')">
-                    <i class="fas fa-heart"></i> <span>Beğenilenler</span>
-                </a>
+    <!-- Sidebar -->
+    <nav class="sidebar">
+        <div class="sidebar-item active" id="homeSidebar" onclick="showPage('home')">
+            <i class="fas fa-home"></i> <span>Ana Sayfa</span>
+        </div>
+        <div class="sidebar-item" id="shortsSidebar" onclick="showPage('shorts')">
+            <i class="fas fa-bolt"></i> <span>Shorts</span>
+        </div>
+        <div class="sidebar-item">
+            <i class="fas fa-clapperboard"></i> <span>Abonelikler</span>
+        </div>
+        <div class="sidebar-sep"></div>
+        <div class="sidebar-item">
+            <i class="fas fa-clock-rotate-left"></i> <span>Geçmiş</span>
+        </div>
+        <div class="sidebar-item">
+            <i class="fas fa-thumbs-up"></i> <span>Beğenilen Videolar</span>
+        </div>
+    </nav>
+
+    <!-- Content Area -->
+    <main class="content" id="mainContent">
+        <!-- Ana Sayfa Video Izgarası -->
+        <div id="homePage">
+            <div class="video-grid" id="videoGrid">
+                <!-- Videolar JS ile yüklenecek -->
             </div>
+        </div>
 
-            <div class="sidebar-section" id="subscriptions-section" style="display:none;">
-                <h3 class="sidebar-title">ABONELIKLERI</h3>
-                <div id="subscriptions-list"></div>
-            </div>
-        </nav>
-    </div>
-
-    <!-- MAIN CONTENT -->
-    <main class="main-content">
-        
-        <!-- ANA SAYFA -->
-        <section id="home-page" class="page-section">
-            <div class="categories-bar">
-                <button class="category-btn active" onclick="filterCategory('all', this)">Tümü</button>
-                <button class="category-btn" onclick="filterCategory('music', this)">Müzik</button>
-                <button class="category-btn" onclick="filterCategory('animation', this)">Animasyon</button>
-                <button class="category-btn" onclick="filterCategory('gaming', this)">Oyun</button>
-                <button class="category-btn" onclick="filterCategory('tutorial', this)">Eğitim</button>
-            </div>
-            <div id="channel-results" class="subscribers-list" style="margin-bottom:20px;"></div>
-            <div id="video-grid" class="video-grid"></div>
-        </section>
-
-        <!-- SHORTS SAYFASI -->
-        <section id="shorts-page" class="page-section" style="display:none;">
-            <div class="shorts-container">
-                <div id="shorts-viewer" class="shorts-viewer">
-                    <div class="shorts-video">
-                        <iframe id="shorts-iframe" width="100%" height="100%" frameborder="0" allowfullscreen></iframe>
-                    </div>
-                    <div class="shorts-actions">
-                        <button class="shorts-action-btn" onclick="likeShort()">
-                            <i class="fas fa-heart"></i>
-                            <span id="short-likes">0</span>
-                        </button>
-                        <button class="shorts-action-btn" onclick="dislikeShort()">
-                            <i class="fas fa-thumbs-down"></i>
-                            <span id="short-dislikes">0</span>
-                        </button>
-                        <button class="shorts-action-btn" onclick="shareShort()">
-                            <i class="fas fa-share"></i>
-                        </button>
-                    </div>
-                    <div class="shorts-nav">
-                        <button class="shorts-nav-btn" onclick="prevShort()">
-                            <i class="fas fa-chevron-up"></i>
-                        </button>
-                        <button class="shorts-nav-btn" onclick="nextShort()">
-                            <i class="fas fa-chevron-down"></i>
-                        </button>
-                    </div>
-                </div>
-                <div class="shorts-info">
-                    <div class="shorts-channel">
-                        <img id="shorts-avatar" class="small-avatar">
-                        <div>
-                            <div id="shorts-author" class="font-bold"></div>
-                            <button class="btn-subscribe-small" onclick="toggleSubscribe()">Abone Ol</button>
-                        </div>
-                    </div>
-                    <h3 id="shorts-title"></h3>
-                    <p id="shorts-description"></p>
-                </div>
-            </div>
-        </section>
-
-        <!-- TRENDLERİ SAYFASI -->
-        <section id="trends-page" class="page-section" style="display:none;">
-            <div class="trends-header">
-                <h1><i class="fas fa-fire"></i> Trendler</h1>
-                <p>En çok izlenen ve beğenilen videolar</p>
-            </div>
-            <div id="trends-grid" class="trends-grid"></div>
-        </section>
-        <!-- BİLDİRİMLER SAYFASI -->
-        <section id="notifications-page" class="page-section" style="display:none;">
-            <h2>Bildirimler</h2>
-            <div id="notifications-list" class="notifications-list"></div>
-        </section>
-        <!-- BEĞENİLENLER SAYFASI -->
-        <section id="liked-page" class="page-section" style="display:none;">
-            <h1>Beğendiğim Videolar</h1>
-            <div id="liked-grid" class="video-grid"></div>
-        </section>
-
-        <!-- KANAL SAYFASI -->
-        <section id="mychannel-page" class="page-section" style="display:none;">
-            <div class="channel-header">
-                <div class="channel-cover"></div>
-                <div class="channel-info">
-                    <img id="channel-avatar" class="channel-avatar">
-                    <div>
-                        <h1 id="channel-name"></h1>
-                        <p id="channel-subscribers">0 abone</p>
-                        <p id="channel-bio-text" style="margin-top:8px; color:var(--secondary-text); max-width:500px;"></p>
-                    </div>
-                    <div style="display:flex; gap:12px; align-items:center;">
-                        <button id="channel-subscribe-btn" class="btn-primary" style="display:none;" onclick="toggleChannelSubscribe()">Abone Ol</button>
-                        <button id="edit-channel-btn" class="btn-primary" onclick="goToPage('settings')" style="display:none;">
-                            Profil Ayarları
-                        </button>
-                    </div>
-                </div>
-                <div style="display:flex; gap:12px; margin-top:20px;">
-                    <button class="btn-primary" onclick="goToPage('subscribers')" style="display:none;" id="my-subscribers-btn">
-                        <i class="fas fa-users"></i> Abonelerim Gör
-                    </button>
-                    <button class="btn-primary" onclick="goToPage('subscriptions')" style="display:none;" id="my-subscriptions-btn">
-                        <i class="fas fa-tv"></i> Abonelikleri Gör
-                    </button>
-                </div>
-            </div>
-            <div class="channel-tabs">
-                <button class="tab-btn active" onclick="switchChannelTab('videos')">Videolar</button>
-                <button class="tab-btn" onclick="switchChannelTab('playlists')">Çalma Listeleri</button>
-            </div>
-            <div id="channel-content">
-                <div id="channel-videos" class="video-grid"></div>
-            </div>
-        </section>
-
-        <!-- KURUCU PANELİ -->
-        <section id="admin-page" class="page-section" style="display:none;">
-            <div class="admin-panel">
-                <h1>🛡️ Kurucu Yönetim Merkezi</h1>
-                
-                <div class="admin-section">
-                    <h2>Kullanıcı Yönet</h2>
-                    <div class="admin-form">
-                        <input type="text" id="admin-target-email" placeholder="Kullanıcı E-postası..." class="form-input">
-                        <div class="admin-buttons">
-                            <button class="btn-success" onclick="adminVerify()">Mavi Tik Ver</button>
-                            <button class="btn-danger" onclick="adminBan()">Banla</button>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="admin-section">
-                    <h2>İçerik Yönet</h2>
-                    <div id="admin-videos-list"></div>
-                </div>
-            </div>
-        </section>
-
-        <!-- PROFIL AYARLARI SAYFASI -->
-        <section id="settings-page" class="page-section" style="display:none;">
-            <div class="settings-container">
-                <h1>⚙️ Profil Ayarları</h1>
-                
-                <div class="settings-card">
-                    <h2>Kanal Başlığı</h2>
-                    <div class="banner-editor">
-                        <div id="channel-banner" class="channel-banner-preview" onclick="document.getElementById('banner-input').click()" style="cursor:pointer;">
-                            <span>Başlık Fotoğrafını Yükle</span>
-                        </div>
-                        <input type="file" id="banner-input" accept="image/*" style="display:none;" onchange="changeBanner()">
-                    </div>
-                </div>
-
-                <div class="settings-card">
-                    <h2>Profil Resmi</h2>
-                    <div style="display:flex; align-items:center; gap:20px;">
-                        <img id="settings-avatar" class="settings-avatar">
-                        <button class="btn-primary" onclick="document.getElementById('avatar-input').click()">Değiştir</button>
-                        <input type="file" id="avatar-input" accept="image/*" style="display:none;" onchange="changeAvatar()">
-                    </div>
-                </div>
-
-                <div class="settings-card">
-                    <h2>Kanal Bilgileri</h2>
-                    <div class="form-group">
-                        <label>Kanal Adı</label>
-                        <input type="text" id="channel-display-name" class="form-input" placeholder="Kanal adın...">
-                    </div>
-                    <div class="form-group">
-                        <label>Kanal Açıklaması</label>
-                        <textarea id="channel-bio" class="form-input" placeholder="Kanalın hakkında yazı..." style="min-height:100px;"></textarea>
-                    </div>
-                </div>
-
-                <div class="settings-card">
-                    <h2>Sosyal Medya</h2>
-                    <div class="form-group">
-                        <label>YouTube Kanalı (URL)</label>
-                        <input type="url" id="social-youtube" class="form-input" placeholder="YouTube profil linki...">
-                    </div>
-                    <div class="form-group">
-                        <label>İnstagram</label>
-                        <input type="text" id="social-instagram" class="form-input" placeholder="@kullanıcıadı">
-                    </div>
-                    <div class="form-group">
-                        <label>Web Sitesi</label>
-                        <input type="url" id="social-website" class="form-input" placeholder="https://example.com">
-                    </div>
-                </div>
-
-                <div class="settings-actions">
-                    <button class="btn-primary" onclick="saveProfileSettings()">Değişiklikleri Kaydet</button>
-                    <button style="padding:12px 20px; border:1px solid var(--border-color); background:none; cursor:pointer; border-radius:4px;" onclick="goToPage('mychannel')">İptal</button>
-                </div>
-            </div>
-        </section>
-
-        <!-- ABONELERİM SAYFASI -->
-        <section id="subscribers-page" class="page-section" style="display:none;">
-            <div class="subscribers-container">
-                <h1>👥 Abonelerim</h1>
-                <p id="subscriber-count-text" style="color:var(--secondary-text); margin-bottom:20px;">0 abone</p>
-                <div id="subscribers-list" class="subscribers-list"></div>
-            </div>
-        </section>
-
-        <!-- ABONELİK SAYFASI -->
-        <section id="subscriptions-page" class="page-section" style="display:none;">
-            <div class="subscriptions-container">
-                <h1>📺 Abonelikleri</h1>
-                <p style="color:var(--secondary-text); margin-bottom:20px;">Abone olduğun kanallar</p>
-                <div id="subscriptions-videos-list" class="video-grid"></div>
-            </div>
-        </section>
-
+        <!-- Shorts Sayfası -->
+        <div id="shortsPage" class="shorts-container">
+            <!-- Shorts JS ile yüklenecek -->
+        </div>
     </main>
 
-    <!-- VIDEO DETAY MODAL -->
-    <div id="video-modal" class="modal" onclick="if(event.target===this) closeVideoModal()">
-        <div class="modal-content modal-video">
-            <button class="modal-close" onclick="closeVideoModal()">✕</button>
-            <div class="video-detail-container">
-                <div class="video-player-section">
-                    <div id="detail-player-container" style="width:100%;height:100%;"></div>
-                </div>
-                <div class="video-info-section">
-                    <h1 id="detail-title"></h1>
-                    <div class="video-meta">
-                        <span id="detail-views">0 izlenme</span>
-                        <span id="detail-date"></span>
-                    </div>
-
-                    <div class="channel-section">
-                        <img id="detail-avatar" class="small-avatar">
-                        <div>
-                            <div id="detail-author" class="font-bold"></div>
-                            <button id="detail-subscribe-btn" class="btn-subscribe" onclick="toggleDetailSubscribe()">Abone Ol</button>
-                        </div>
-                    </div>
-
-                    <div class="interaction-buttons">
-                        <button class="btn-action" onclick="likeVideo()">
-                            <i class="fas fa-thumbs-up"></i>
-                            <span id="like-count">0</span>
-                        </button>
-                        <button class="btn-action" onclick="dislikeVideo()">
-                            <i class="fas fa-thumbs-down"></i>
-                            <span id="dislike-count">0</span>
-                        </button>
-                        <button class="btn-action" onclick="shareVideo()">
-                            <i class="fas fa-share"></i> Paylaş
-                        </button>
-                        <button class="btn-action" onclick="reportVideo()">
-                            <i class="fas fa-flag"></i> Şikayet Et
-                        </button>
-                        <button class="btn-action" onclick="saveToPlaylist()">
-                            <i class="fas fa-list"></i> Kaydet
-                        </button>
-                    </div>
-
-                    <div class="description-section">
-                        <p id="detail-description"></p>
-                    </div>
-
-                    <!-- YORUM BÖLÜMÜ -->
-                    <div class="comments-section">
-                        <h3>Yorumlar</h3>
-                        <div id="comment-input-area"></div>
-                        <div id="comments-list" class="comments-list"></div>
-                    </div>
-                </div>
-
-                <!-- SIRAKIN VIDEOLARI -->
-                <div class="sidebar-videos">
-                    <h3>Sıradaki</h3>
-                    <div id="next-videos-list"></div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- YÜKLEME MODAL -->
-    <div id="upload-modal" class="modal" onclick="if(event.target===this) closeUploadModal()">
-        <div class="modal-content modal-upload">
-            <button class="modal-close" onclick="closeUploadModal()">✕</button>
-            <h2>Video Yükle</h2>
+    <!-- Video İzleme Modalı -->
+    <div class="modal-overlay" id="videoModal">
+        <div class="modal-content">
+            <span class="close-modal" onclick="closeVideoModal()">&times;</span>
+            <div class="player-container" id="playerContainer"></div>
+            <h2 id="modalTitle">Video Başlığı</h2>
+            <p id="modalStats" style="color: var(--secondary-text); font-size: 14px; margin: 8px 0;"></p>
+            <hr style="border: 0.5px solid var(--border-color); margin: 16px 0;">
             
-            <div class="upload-tabs">
-                <button class="tab-btn active" onclick="switchUploadTab('link')">YouTube Linki</button>
-                <button class="tab-btn" onclick="switchUploadTab('file')">Dosya Yükle</button>
-            </div>
-
-            <!-- YOUTUBE LINKI SEKMESI -->
-            <div id="link-tab" class="upload-tab active">
-                <input type="text" id="v-url" placeholder="YouTube Video Linki..." class="form-input">
-                <input type="text" id="v-title" placeholder="Başlık..." class="form-input">
-                <textarea id="v-description" placeholder="Açıklama..."></textarea>
-                <select id="v-category" class="form-input">
-                    <option value="">Kategori Seç</option>
-                    <option value="music">Müzik</option>
-                    <option value="animation">Animasyon</option>
-                    <option value="gaming">Oyun</option>
-                    <option value="tutorial">Eğitim</option>
-                </select>
-                <div style="margin:8px 0;">
-                    <label><input type="checkbox" id="v-shorts-checkbox"> Shorts olarak işaretle</label>
+            <div class="comments-section">
+                <h3>Yorumlar</h3>
+                <div class="comment-input-area">
+                    <div class="v-avatar" id="currentUserAvatarInComments"></div>
+                    <input type="text" id="commentInput" placeholder="Yorum ekle...">
+                    <button class="icon-btn" onclick="postComment()"><i class="fas fa-paper-plane"></i></button>
                 </div>
-                <button class="btn-primary" onclick="publishVideoFromLink()">YAYINLA</button>
-            </div>
-
-            <!-- DOSYA YÜKLEME SEKMESI -->
-            <div id="file-tab" class="upload-tab" style="display:none;">
-                <div class="file-upload-area" onclick="document.getElementById('file-input').click()">
-                    <i class="fas fa-cloud-upload-alt"></i>
-                    <p>Dosyayı sürükle veya tıkla</p>
-                    <small>MP4, MOV - Max 2GB</small>
-                </div>
-                <input type="file" id="file-input" accept="video/*" style="display:none;" onchange="handleFileSelect()">
-                <div id="file-info" style="display:none;">
-                    <p id="file-name"></p>
-                    <div class="progress-bar">
-                        <div id="upload-progress" class="progress-fill"></div>
-                    </div>
-                </div>
-                <input type="text" id="file-title" placeholder="Başlık..." class="form-input">
-                <textarea id="file-description" placeholder="Açıklama..."></textarea>
-                <input type="text" id="file-thumbnail" placeholder="Kapak Fotoğrafı URL (İsteğe Bağlı)">
-                <select id="file-category" class="form-input">
-                    <option value="">Kategori Seç</option>
-                    <option value="music">Müzik</option>
-                    <option value="animation">Animasyon</option>
-                    <option value="gaming">Oyun</option>
-                    <option value="tutorial">Eğitim</option>
-                </select>
-                <div style="margin:8px 0;">
-                    <label><input type="checkbox" id="file-shorts-checkbox"> Shorts olarak işaretle</label>
-                </div>
-                <button class="btn-primary" id="publish-file-btn" onclick="publishVideoFromFile()" style="display:none;">YAYINLA</button>
+                <div id="commentsList"></div>
             </div>
         </div>
     </div>
 
-    <script src="script.js"></script>
+    <!-- Video Yükleme Modalı -->
+    <div class="modal-overlay" id="uploadModal">
+        <div class="modal-content" style="max-width: 500px;">
+            <span class="close-modal" onclick="closeUploadModal()">&times;</span>
+            <h2>Video Yükle</h2>
+            <div style="margin-top: 20px;">
+                <input type="text" id="upTitle" placeholder="Video Başlığı" style="width:100%; padding:10px; margin-bottom:10px; border-radius:5px; border:1px solid var(--border-color); background:transparent; color:var(--text-color);">
+                <input type="text" id="upUrl" placeholder="Video Dosya URL'si (MP4)" style="width:100%; padding:10px; margin-bottom:10px; border-radius:5px; border:1px solid var(--border-color); background:transparent; color:var(--text-color);">
+                <input type="text" id="upThumb" placeholder="Kapak Resmi URL" style="width:100%; padding:10px; margin-bottom:10px; border-radius:5px; border:1px solid var(--border-color); background:transparent; color:var(--text-color);">
+                <label style="display:block; margin-bottom:15px;">
+                    <input type="checkbox" id="upIsShort"> Shorts olarak yükle
+                </label>
+                <button class="btn-primary" onclick="uploadVideoData()" style="width:100%; background:var(--yt-blue); color:white; padding:12px; border:none; border-radius:5px; cursor:pointer; font-weight:bold;">YAYINLA</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ======== FIREBASE CONFIG ========
+        const firebaseConfig = {
+            apiKey: "AIzaSyAaDFdyia63SMjnBreMRUQbCPs4foUHFl8", 
+            authDomain: "bhminations.firebaseapp.com",
+            projectId: "bhminations",
+            storageBucket: "bhminations.firebasestorage.app",
+            messagingSenderId: "606037209431",
+            appId: "1:606037209431:web:a1968ebb1673475deb8e12"
+        };
+
+        if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+        
+        const auth = firebase.auth();
+        const db = firebase.firestore();
+
+        db.settings({
+            cacheSizeBytes: firebase.firestore.CACHE_SIZE_UNLIMITED,
+            merge: true
+        });
+
+        db.enablePersistence().catch((err) => {
+            console.warn("Offline persistence issue:", err.code);
+        });
+
+        let currentUser = null;
+        let currentVideoId = null;
+
+        auth.onAuthStateChanged(user => {
+            currentUser = user;
+            const loginBtn = document.getElementById('loginBtn');
+            const commentAvatar = document.getElementById('currentUserAvatarInComments');
+            
+            if (user) {
+                loginBtn.innerHTML = `<img src="${user.photoURL}" style="width:100%;height:100%; border-radius:50%">`;
+                if(commentAvatar) commentAvatar.innerHTML = `<img src="${user.photoURL}" style="width:100%; border-radius:50%">`;
+            } else {
+                loginBtn.innerHTML = `<i class="fas fa-user"></i>`;
+                if(commentAvatar) commentAvatar.innerHTML = "";
+            }
+            loadVideos();
+        });
+
+        async function handleAuth() {
+            try {
+                if (currentUser) {
+                    if (confirm("Çıkış yapmak istiyor musunuz?")) await auth.signOut();
+                } else {
+                    const provider = new firebase.auth.GoogleAuthProvider();
+                    await auth.signInWithPopup(provider);
+                }
+            } catch (error) {
+                console.error("Auth error:", error);
+                alert("Giriş başarısız.");
+            }
+        }
+
+        async function uploadVideoData() {
+            if (!currentUser) return alert("Önce giriş yapmalısın!");
+            const title = document.getElementById('upTitle').value.trim();
+            const videoUrl = document.getElementById('upUrl').value.trim();
+            const thumbUrl = document.getElementById('upThumb').value.trim();
+            const isShort = document.getElementById('upIsShort').checked;
+
+            if (!title || !videoUrl) return alert("Başlık ve URL zorunludur!");
+
+            try {
+                await db.collection('videos').add({
+                    title,
+                    videoUrl,
+                    thumbUrl: thumbUrl || "https://via.placeholder.com/640x360?text=BHminations",
+                    isShort,
+                    author: currentUser.displayName,
+                    authorId: currentUser.uid,
+                    authorAvatar: currentUser.photoURL,
+                    views: 0,
+                    viewedUsers: [],
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+                alert("Yayınlandı!");
+                closeUploadModal();
+                loadVideos();
+            } catch (error) {
+                console.error("Upload error:", error);
+                alert("İzin hatası: Firestore kurallarını kontrol edin.");
+            }
+        }
+
+        async function loadVideos() {
+            const videoGrid = document.getElementById('videoGrid');
+            const shortsContainer = document.getElementById('shortsPage');
+            
+            try {
+                // Not: Permission hatası alıyorsanız Firestore kurallarında 'allow read: if true;' olmalı.
+                const snapshot = await db.collection('videos').orderBy('createdAt', 'desc').get();
+                
+                videoGrid.innerHTML = "";
+                shortsContainer.innerHTML = "";
+
+                if (snapshot.empty) {
+                    videoGrid.innerHTML = "<p style='padding:20px;'>Henüz video yüklenmemiş.</p>";
+                    return;
+                }
+
+                snapshot.forEach(doc => {
+                    const video = doc.data();
+                    const id = doc.id;
+
+                    if (video.isShort) {
+                        const shortDiv = document.createElement('div');
+                        shortDiv.className = 'short-item';
+                        shortDiv.innerHTML = `
+                            <video src="${video.videoUrl}" class="short-video" loop muted autoplay playsinline></video>
+                            <div style="position:absolute; bottom:20px; left:20px; color:white; text-shadow:1px 1px 4px rgba(0,0,0,0.8); pointer-events:none;">
+                                <h3>@${video.author}</h3>
+                                <p>${video.title}</p>
+                            </div>
+                        `;
+                        shortsContainer.appendChild(shortDiv);
+                    } else {
+                        const card = document.createElement('div');
+                        card.className = 'v-card';
+                        card.onclick = () => openVideo(id, video);
+                        card.innerHTML = `
+                            <div class="v-thumb"><img src="${video.thumbUrl}" onerror="this.src='https://via.placeholder.com/640x360?text=Video'"></div>
+                            <div class="v-meta">
+                                <div class="v-avatar"><img src="${video.authorAvatar || 'https://via.placeholder.com/36'}" onerror="this.src='https://via.placeholder.com/36'"></div>
+                                <div class="v-info">
+                                    <h3>${video.title}</h3>
+                                    <p class="v-stats">${video.author} • ${video.views || 0} görüntüleme</p>
+                                </div>
+                            </div>
+                        `;
+                        videoGrid.appendChild(card);
+                    }
+                });
+            } catch (error) {
+                console.error("Load error:", error);
+                videoGrid.innerHTML = `
+                    <div style="padding:20px; border:1px solid #ff000033; border-radius:8px; background:#ff000011;">
+                        <p><b>Erişim Hatası:</b> Videolar yüklenemedi.</p>
+                        <small>Lütfen Firebase Console üzerinden Firestore kurallarını "public read" (herkese açık okuma) olarak güncellediğinizden emin olun.</small>
+                    </div>`;
+            }
+        }
+
+        async function handleViewCount(videoId, videoData) {
+            if (!currentUser) return;
+            const viewedUsers = videoData.viewedUsers || [];
+            if (!viewedUsers.includes(currentUser.uid)) {
+                try {
+                    await db.collection('videos').doc(videoId).update({
+                        views: firebase.firestore.FieldValue.increment(1),
+                        viewedUsers: firebase.firestore.FieldValue.arrayUnion(currentUser.uid)
+                    });
+                } catch (e) { console.warn("View update failed (Permissions?)"); }
+            }
+        }
+
+        function openVideo(id, video) {
+            currentVideoId = id;
+            const modal = document.getElementById('videoModal');
+            const player = document.getElementById('playerContainer');
+            handleViewCount(id, video);
+            player.innerHTML = `<video src="${video.videoUrl}" controls autoplay style="width:100%; height:100%;"></video>`;
+            document.getElementById('modalTitle').innerText = video.title;
+            const date = video.createdAt ? new Date(video.createdAt.toDate()).toLocaleDateString() : "Yeni";
+            document.getElementById('modalStats').innerText = `${video.views || 0} görüntüleme • ${date}`;
+            modal.style.display = "flex";
+            loadComments(id);
+        }
+
+        async function postComment() {
+            const text = document.getElementById('commentInput').value.trim();
+            if (!text || !currentUser) return alert("Giriş yapmalısın!");
+            try {
+                await db.collection('comments').add({
+                    videoId: currentVideoId,
+                    userId: currentUser.uid,
+                    userName: currentUser.displayName,
+                    userAvatar: currentUser.photoURL,
+                    text: text,
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+                document.getElementById('commentInput').value = "";
+            } catch (e) { alert("Yorum izni reddedildi."); }
+        }
+
+        let commentsUnsubscribe = null;
+        function loadComments(videoId) {
+            const list = document.getElementById('commentsList');
+            if (commentsUnsubscribe) commentsUnsubscribe();
+            commentsUnsubscribe = db.collection('comments')
+                .where('videoId', '==', videoId)
+                .orderBy('createdAt', 'desc')
+                .onSnapshot(snapshot => {
+                    list.innerHTML = "";
+                    snapshot.forEach(doc => {
+                        const c = doc.data();
+                        list.innerHTML += `
+                            <div class="comment-item">
+                                <div class="v-avatar"><img src="${c.userAvatar}" style="width:100%; border-radius:50%"></div>
+                                <div class="comment-content">
+                                    <div class="comment-author">${c.userName}</div>
+                                    <div class="comment-text">${c.text}</div>
+                                </div>
+                            </div>
+                        `;
+                    });
+                }, err => console.warn("Comments permission error"));
+        }
+
+        function showPage(page) {
+            document.getElementById('homePage').style.display = page === 'home' ? 'block' : 'none';
+            document.getElementById('shortsPage').style.display = page === 'shorts' ? 'block' : 'none';
+            document.querySelectorAll('.sidebar-item').forEach(el => el.classList.remove('active'));
+            if (page === 'home') document.getElementById('homeSidebar').classList.add('active');
+            if (page === 'shorts') document.getElementById('shortsSidebar').classList.add('active');
+        }
+
+        function toggleSidebar() {
+            const sidebar = document.querySelector('.sidebar');
+            const content = document.querySelector('.content');
+            const isCollapsed = sidebar.style.width === '72px';
+            sidebar.style.width = isCollapsed ? '240px' : '72px';
+            content.style.marginLeft = isCollapsed ? '240px' : '72px';
+            document.querySelectorAll('.sidebar span').forEach(s => s.style.display = isCollapsed ? 'inline' : 'none');
+        }
+
+        function toggleDarkMode() { document.body.classList.toggle('dark-mode'); }
+        function openUploadModal() { 
+            if(!currentUser) return alert("Giriş yapmalısın!");
+            document.getElementById('uploadModal').style.display = "flex"; 
+        }
+        function closeUploadModal() { document.getElementById('uploadModal').style.display = "none"; }
+        function closeVideoModal() { 
+            document.getElementById('videoModal').style.display = "none"; 
+            document.getElementById('playerContainer').innerHTML = ""; 
+            if (commentsUnsubscribe) commentsUnsubscribe();
+        }
+
+        window.onclick = (e) => { if (e.target.className === 'modal-overlay') { closeUploadModal(); closeVideoModal(); } }
+    </script>
 </body>
 </html>
